@@ -106,3 +106,13 @@ export const refresh = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Something went wrong during token refresh" });
   }
 };
+export const logout = async (req: Request, res: Response) => {
+  try {
+    res.status(200).json({
+      message: "Logout successful. Please clear tokens on the client side.",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ error: "Something went wrong during logout" });
+  }
+};
