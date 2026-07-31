@@ -21,7 +21,7 @@ model Resume {
   id         Int      @id @default(autoincrement())
   userId     Int
   fileUrl    String
-  parsedJson String?
+  parsedJson Json?          // was: String?
   uploadedAt DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id])
 }
@@ -47,27 +47,31 @@ model Question {
   interviewId Int
   text        String
   orderIndex  Int
+  sourceSkill String?        // NEW — traces question back to resume skill, e.g. "React"
   interview   Interview @relation(fields: [interviewId], references: [id])
   response    Response?
 }
 
 model Response {
-  id         Int      @id @default(autoincrement())
-  questionId Int      @unique
-  answerText String
-  score      Int?
-  feedback   String?
-  question   Question @relation(fields: [questionId], references: [id])
+  id                 Int      @id @default(autoincrement())
+  questionId         Int      @unique
+  answerText         String
+  correctnessScore   Int?           // was: score
+  communicationScore Int?           // NEW
+  structureScore     Int?           // NEW
+  feedback           String?
+  question           Question @relation(fields: [questionId], references: [id])
 }
 
 model Report {
   id                 Int       @id @default(autoincrement())
   interviewId        Int       @unique
   overallScore       Int?
-  technicalScore     Int?
+  correctnessScore   Int?           // renamed from technicalScore, matches Response
   communicationScore Int?
-  strengths          String?
-  weaknesses         String?
-  roadmapText        String?
+  structureScore     Int?           // NEW
+  strengths          Json?          // was: String?
+  weaknesses         Json?          // was: String?
+  roadmapText        String?        // kept as String — this one's prose, not a list
   interview          Interview @relation(fields: [interviewId], references: [id])
 }
