@@ -3,93 +3,86 @@
 import { motion } from "framer-motion";
 import { Check, X, Sparkles } from "lucide-react";
 
-const comparisons = [
-  { feature: "Personalized to your resume", traditional: false, forge: true },
-  { feature: "Available 24/7", traditional: false, forge: true },
-  { feature: "Instant detailed feedback", traditional: false, forge: true },
-  { feature: "AI-powered evaluation", traditional: false, forge: true },
-  { feature: "Progress tracking over time", traditional: false, forge: true },
-  { feature: "Unlimited practice sessions", traditional: false, forge: true },
-  { feature: "Adapts to your skill level", traditional: false, forge: true },
-  { feature: "Data-driven insights", traditional: false, forge: true },
-  { feature: "Free to start", traditional: true, forge: true },
-  { feature: "Human interaction practice", traditional: true, forge: false },
+const rows = [
+  { feature: "Personalized to your resume", trad: false, forge: true },
+  { feature: "Available 24/7", trad: false, forge: true },
+  { feature: "Instant detailed feedback", trad: false, forge: true },
+  { feature: "AI-powered evaluation", trad: false, forge: true },
+  { feature: "Progress tracking over time", trad: false, forge: true },
+  { feature: "Unlimited practice sessions", trad: false, forge: true },
+  { feature: "Adapts to your skill level", trad: false, forge: true },
+  { feature: "Data-driven insights", trad: false, forge: true },
+  { feature: "Free to start", trad: true, forge: true },
+  { feature: "Human interaction practice", trad: true, forge: false },
 ];
 
 export default function Comparison() {
   return (
-    <section className="py-20 sm:py-28 bg-gray-50/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+    <section className="py-24 sm:py-32 bg-gray-50/40" aria-label="Comparison">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6 }}
-          className="text-center max-w-2xl mx-auto mb-16"
+          transition={{ duration: 0.7 }}
+          className="text-center max-w-2xl mx-auto mb-16 sm:mb-20"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-100 text-brand-700 text-xs font-medium mb-4">
+          <span className="inline-block px-3 py-1 rounded-full bg-primary-50 border border-primary-100 text-[11px] font-semibold text-primary-600 uppercase tracking-[0.1em] mb-5">
             Comparison
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
-            Why choose{" "}
+          </span>
+          <h2 className="text-3xl sm:text-[2.75rem] font-bold text-primary-900 tracking-[-0.03em] leading-[1.15]">
+            Why choose
+            <br />
             <span className="text-gradient">InterviewForge AI</span>?
           </h2>
-          <p className="mt-4 text-gray-500 text-base sm:text-lg leading-relaxed">
+          <p className="mt-5 text-gray-500 text-base sm:text-lg leading-relaxed">
             See how AI-powered preparation outperforms traditional methods.
           </p>
         </motion.div>
 
-        {/* Table */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.6 }}
-          className="max-w-3xl mx-auto"
+          className="max-w-2xl mx-auto"
         >
-          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-lg shadow-gray-900/5 overflow-hidden">
+          <div className="glass-card overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-3 gap-0 border-b border-gray-100">
+            <div className="grid grid-cols-3 border-b border-gray-100">
               <div className="p-4 sm:p-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Feature</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400">Feature</p>
               </div>
-              <div className="p-4 sm:p-5 text-center border-x border-gray-100">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Traditional</p>
+              <div className="p-4 sm:p-5 text-center border-x border-gray-100/60">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400">Traditional</p>
               </div>
-              <div className="p-4 sm:p-5 text-center bg-brand-50/50">
+              <div className="p-4 sm:p-5 text-center bg-primary-50/40">
                 <div className="flex items-center justify-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-                  <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">InterviewForge</p>
+                  <Sparkles className="w-3 h-3 text-primary-500" />
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary-600">InterviewForge</p>
                 </div>
               </div>
             </div>
 
             {/* Rows */}
-            {comparisons.map((row, i) => (
+            {rows.map((row, i) => (
               <div
                 key={i}
-                className={`grid grid-cols-3 gap-0 ${
-                  i !== comparisons.length - 1 ? "border-b border-gray-50" : ""
-                } hover:bg-gray-50/50 transition-colors`}
+                className={`grid grid-cols-3 ${i !== rows.length - 1 ? "border-b border-gray-50" : ""} hover:bg-gray-50/30 transition-colors duration-300`}
               >
                 <div className="p-3.5 sm:p-4 flex items-center">
-                  <span className="text-sm text-gray-700">{row.feature}</span>
+                  <span className="text-[13px] text-gray-600">{row.feature}</span>
                 </div>
                 <div className="p-3.5 sm:p-4 flex items-center justify-center border-x border-gray-50">
-                  {row.traditional ? (
-                    <Check className="w-5 h-5 text-gray-300" />
-                  ) : (
-                    <X className="w-5 h-5 text-gray-200" />
-                  )}
+                  {row.trad ? <Check className="w-4 h-4 text-gray-300" /> : <X className="w-4 h-4 text-gray-200" />}
                 </div>
-                <div className="p-3.5 sm:p-4 flex items-center justify-center bg-brand-50/30">
+                <div className="p-3.5 sm:p-4 flex items-center justify-center bg-primary-50/20">
                   {row.forge ? (
-                    <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center">
-                      <Check className="w-4 h-4 text-brand-600" />
+                    <div className="w-5 h-5 rounded-full bg-primary-100 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-primary-600" />
                     </div>
                   ) : (
-                    <X className="w-5 h-5 text-gray-300" />
+                    <X className="w-4 h-4 text-gray-300" />
                   )}
                 </div>
               </div>

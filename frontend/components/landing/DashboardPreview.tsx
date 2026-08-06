@@ -1,101 +1,94 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  BarChart3,
-  Clock,
-  Users,
-  Zap,
-  TrendingUp,
-  Star,
-} from "lucide-react";
+import { BarChart3, Clock, Users, Zap, TrendingUp, Star } from "lucide-react";
 
 export default function DashboardPreview() {
   return (
-    <section className="py-20 sm:py-28">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 sm:py-32" aria-label="Dashboard preview">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6 }}
-          className="text-center max-w-2xl mx-auto mb-16"
+          transition={{ duration: 0.7 }}
+          className="text-center max-w-2xl mx-auto mb-16 sm:mb-20"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-100 text-brand-700 text-xs font-medium mb-4">
+          <span className="inline-block px-3 py-1 rounded-full bg-primary-50 border border-primary-100 text-[11px] font-semibold text-primary-600 uppercase tracking-[0.1em] mb-5">
             Dashboard
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
-            Your command center for{" "}
+          </span>
+          <h2 className="text-3xl sm:text-[2.75rem] font-bold text-primary-900 tracking-[-0.03em] leading-[1.15]">
+            Your command center for
+            <br />
             <span className="text-gradient">interview success</span>
           </h2>
-          <p className="mt-4 text-gray-500 text-base sm:text-lg leading-relaxed">
-            Everything you need at a glance — performance metrics, history, and actionable insights.
+          <p className="mt-5 text-gray-500 text-base sm:text-lg leading-relaxed">
+            Everything at a glance — metrics, history, and actionable insights.
           </p>
         </motion.div>
 
-        {/* Dashboard Mockup */}
+        {/* Mockup */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="relative max-w-5xl mx-auto"
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="relative max-w-4xl mx-auto"
         >
-          <div className="bg-white rounded-2xl shadow-2xl shadow-gray-900/10 border border-gray-200/60 overflow-hidden">
-            {/* Browser Chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-100">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-400" />
-                <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                <div className="w-3 h-3 rounded-full bg-green-400" />
+          {/* Glow */}
+          <div className="absolute -inset-8 bg-gradient-to-r from-primary-500/[0.04] via-violet-500/[0.03] to-indigo-500/[0.04] rounded-[32px] blur-3xl -z-10" />
+
+          <div className="glass-card overflow-hidden">
+            {/* Chrome */}
+            <div className="flex items-center gap-2 px-4 py-3 bg-gray-50/80 border-b border-gray-200/40">
+              <div className="flex gap-[6px]">
+                <div className="w-[10px] h-[10px] rounded-full bg-[#FF5F57]" />
+                <div className="w-[10px] h-[10px] rounded-full bg-[#FFBD2E]" />
+                <div className="w-[10px] h-[10px] rounded-full bg-[#28C840]" />
               </div>
               <div className="flex-1 flex justify-center">
-                <div className="px-4 py-1 bg-white rounded-md text-[11px] text-gray-400 border border-gray-200 font-mono">
+                <div className="px-6 py-1 bg-white/80 rounded-lg text-[11px] text-gray-400 border border-gray-200/60 font-mono tracking-wide">
                   interviewforge.ai/dashboard
                 </div>
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 bg-gray-50/50">
-              {/* Top Nav */}
-              <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 mb-4 border border-gray-100">
+            <div className="p-4 sm:p-6 bg-[#fafafa]">
+              {/* Top bar */}
+              <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 mb-4 border border-gray-100/80">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-navy-700 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center">
                     <Zap className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-sm font-semibold text-gray-900 hidden sm:inline">InterviewForge AI</span>
+                  <span className="text-sm font-semibold text-primary-900 hidden sm:inline tracking-tight">InterviewForge AI</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400">
-                    <Clock className="w-3.5 h-3.5" />
+                  <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-gray-400">
+                    <Clock className="w-3 h-3" />
                     Last session: 2h ago
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-[11px] font-semibold text-white">
-                    AP
-                  </div>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-[10px] font-bold text-white">AP</div>
                 </div>
               </div>
 
-              {/* Stats Row */}
+              {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 {[
-                  { icon: BarChart3, label: "Total Sessions", value: "24", change: "+3", changeColor: "text-emerald-600", iconColor: "text-brand-600", iconBg: "bg-brand-50" },
-                  { icon: Star, label: "Average Score", value: "87%", change: "+12%", changeColor: "text-emerald-600", iconColor: "text-amber-600", iconBg: "bg-amber-50" },
-                  { icon: TrendingUp, label: "Improvement", value: "+23%", change: "vs last month", changeColor: "text-brand-600", iconColor: "text-emerald-600", iconBg: "bg-emerald-50" },
-                  { icon: Users, label: "Peer Rank", value: "Top 15%", change: "of users", changeColor: "text-purple-600", iconColor: "text-purple-600", iconBg: "bg-purple-50" },
+                  { icon: BarChart3, label: "Sessions", value: "24", delta: "+3", deltaColor: "text-emerald-600", iconColor: "text-primary-500", iconBg: "bg-primary-50" },
+                  { icon: Star, label: "Avg Score", value: "87%", delta: "+12%", deltaColor: "text-emerald-600", iconColor: "text-amber-500", iconBg: "bg-amber-50" },
+                  { icon: TrendingUp, label: "Improvement", value: "+23%", delta: "vs last month", deltaColor: "text-primary-600", iconColor: "text-emerald-500", iconBg: "bg-emerald-50" },
+                  { icon: Users, label: "Peer Rank", value: "Top 15%", delta: "of users", deltaColor: "text-violet-600", iconColor: "text-violet-500", iconBg: "bg-violet-50" },
                 ].map((stat, i) => {
                   const Icon = stat.icon;
                   return (
-                    <div key={i} className="bg-white rounded-xl p-4 border border-gray-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-7 h-7 rounded-lg ${stat.iconBg} flex items-center justify-center`}>
-                          <Icon className={`w-3.5 h-3.5 ${stat.iconColor}`} />
-                        </div>
+                    <div key={i} className="bg-white rounded-xl p-3.5 border border-gray-100/80">
+                      <div className={`w-7 h-7 rounded-lg ${stat.iconBg} flex items-center justify-center mb-2`}>
+                        <Icon className={`w-3.5 h-3.5 ${stat.iconColor}`} />
                       </div>
-                      <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">{stat.label}</p>
-                      <p className="text-xl font-bold text-gray-900 mt-0.5">{stat.value}</p>
-                      <p className={`text-[11px] ${stat.changeColor} font-medium mt-0.5`}>{stat.change}</p>
+                      <p className="text-[10px] text-gray-400 font-medium uppercase tracking-[0.08em]">{stat.label}</p>
+                      <p className="text-lg font-bold text-primary-900 mt-0.5 tabular-nums">{stat.value}</p>
+                      <p className={`text-[10px] ${stat.deltaColor} font-semibold mt-0.5`}>{stat.delta}</p>
                     </div>
                   );
                 })}
@@ -103,56 +96,40 @@ export default function DashboardPreview() {
 
               {/* Chart + Activity */}
               <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
-                {/* Chart */}
-                <div className="sm:col-span-3 bg-white rounded-xl p-4 border border-gray-100">
+                <div className="sm:col-span-3 bg-white rounded-xl p-4 border border-gray-100/80">
                   <div className="flex items-center justify-between mb-4">
-                    <p className="text-xs font-semibold text-gray-700">Performance Trend</p>
+                    <p className="text-xs font-semibold text-gray-700 tracking-tight">Performance Trend</p>
                     <div className="flex gap-1">
                       {["1W", "1M", "3M"].map((t) => (
-                        <button
-                          key={t}
-                          className={`px-2 py-0.5 text-[10px] rounded-md font-medium ${
-                            t === "1M"
-                              ? "bg-brand-50 text-brand-600"
-                              : "text-gray-400 hover:text-gray-600"
-                          }`}
-                        >
-                          {t}
-                        </button>
+                        <span key={t} className={`px-2 py-0.5 text-[10px] rounded-md font-medium cursor-default ${t === "1M" ? "bg-primary-50 text-primary-600" : "text-gray-400"}`}>{t}</span>
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-end gap-1.5 h-28 px-1">
-                    {[45, 52, 48, 62, 58, 70, 65, 75, 72, 80, 78, 85, 82, 90, 87].map((h, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div
-                          className="w-full rounded-t bg-gradient-to-t from-brand-500 to-brand-300 min-h-[4px]"
-                          style={{ height: `${h}%` }}
-                        />
-                      </div>
+                  <div className="flex items-end gap-[3px] h-28">
+                    {[42, 50, 46, 58, 54, 66, 62, 72, 68, 76, 74, 82, 78, 86, 84].map((h, i) => (
+                      <div key={i} className="flex-1 rounded-[3px] bg-gradient-to-t from-primary-500 to-primary-300" style={{ height: `${h}%` }} />
                     ))}
                   </div>
                 </div>
 
-                {/* Recent Activity */}
-                <div className="sm:col-span-2 bg-white rounded-xl p-4 border border-gray-100">
-                  <p className="text-xs font-semibold text-gray-700 mb-3">Recent Activity</p>
+                <div className="sm:col-span-2 bg-white rounded-xl p-4 border border-gray-100/80">
+                  <p className="text-xs font-semibold text-gray-700 mb-3 tracking-tight">Recent Activity</p>
                   <div className="space-y-3">
                     {[
-                      { type: "Technical — Backend", score: 92, time: "2h ago", color: "bg-emerald-500" },
-                      { type: "HR — General", score: 78, time: "Yesterday", color: "bg-brand-500" },
-                      { type: "System Design", score: 85, time: "2 days ago", color: "bg-purple-500" },
-                      { type: "Technical — Frontend", score: 88, time: "3 days ago", color: "bg-amber-500" },
+                      { type: "Technical — Backend", score: 92, time: "2h ago", dot: "bg-emerald-500" },
+                      { type: "HR — General", score: 78, time: "Yesterday", dot: "bg-primary-500" },
+                      { type: "System Design", score: 85, time: "2 days ago", dot: "bg-violet-500" },
+                      { type: "Technical — Frontend", score: 88, time: "3 days ago", dot: "bg-amber-500" },
                     ].map((item, i) => (
                       <div key={i} className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                          <div className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${item.dot}`} />
                           <div>
-                            <p className="text-xs font-medium text-gray-700">{item.type}</p>
+                            <p className="text-[11px] font-medium text-gray-700">{item.type}</p>
                             <p className="text-[10px] text-gray-400">{item.time}</p>
                           </div>
                         </div>
-                        <span className="text-xs font-semibold text-gray-900">{item.score}%</span>
+                        <span className="text-[11px] font-bold text-primary-900 tabular-nums">{item.score}%</span>
                       </div>
                     ))}
                   </div>
@@ -160,9 +137,6 @@ export default function DashboardPreview() {
               </div>
             </div>
           </div>
-
-          {/* Glow */}
-          <div className="absolute -inset-6 bg-gradient-to-r from-brand-500/5 via-purple-500/5 to-navy-500/5 rounded-3xl -z-10 blur-3xl" />
         </motion.div>
       </div>
     </section>
