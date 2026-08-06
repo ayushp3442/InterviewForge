@@ -1,3 +1,118 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ========= Smooth scroll ========= */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ========= Custom scrollbar ========= */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c4c8d4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ba1b0;
+}
+
+/* ========= Landing page utilities ========= */
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #0a63f0 0%, #6485fc 50%, #222bd9 100%);
+  }
+
+  .text-gradient-light {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #3485fc 0%, #7badff 50%, #3f5bf7 100%);
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(10, 99, 240, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(10, 99, 240, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  .bg-dot-grid {
+    background-image: radial-gradient(circle, rgba(10, 99, 240, 0.08) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-navy-950/70 backdrop-blur-xl border border-white/10;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-1 shadow-lg;
+  }
+
+  .glow-border {
+    position: relative;
+  }
+
+  .glow-border::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(10, 99, 240, 0.2), rgba(100, 133, 252, 0.1), transparent);
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .glow-border:hover::after {
+    opacity: 1;
+  }
+}
+
+/* ========= Gradient mesh background ========= */
+.gradient-mesh {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(10, 99, 240, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(100, 133, 252, 0.06), transparent),
+    radial-gradient(ellipse 50% 60% at 50% 80%, rgba(34, 43, 217, 0.04), transparent);
+}
+
+/* ========= Animated gradient blob ========= */
+.gradient-blob {
+  filter: blur(60px);
+  animation: blob-morph 8s ease-in-out infinite;
+}
+
+@keyframes blob-morph {
+  0%, 100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    transform: rotate(0deg) scale(1);
+  }
+  33% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+    transform: rotate(120deg) scale(1.05);
+  }
+  66% {
+    border-radius: 50% 40% 60% 30% / 40% 70% 50% 60%;
+    transform: rotate(240deg) scale(0.95);
+  }
+}
+
+/* ========= Selection color ========= */
+::selection {
+  background-color: rgba(10, 99, 240, 0.15);
+  color: inherit;
+}
