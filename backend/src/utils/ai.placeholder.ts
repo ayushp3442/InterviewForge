@@ -29,3 +29,28 @@ export const generateQuestions = async (
 
   return { questions: placeholderQuestions };
 };
+
+
+interface EvaluateResponseInput {
+  questionText: string;
+  answerText: string;
+  interviewType: string;
+}
+
+interface EvaluatedResponse {
+  correctnessScore: number;
+  communicationScore: number;
+  structureScore: number;
+  feedback: string;
+}
+
+export const evaluateResponse = async (
+  input: EvaluateResponseInput
+): Promise<EvaluatedResponse> => {
+  return {
+    correctnessScore: 7,
+    communicationScore: 7,
+    structureScore: 7,
+    feedback: "[Placeholder] Decent answer, could use more specific examples.",
+  };
+};

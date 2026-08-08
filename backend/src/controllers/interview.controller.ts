@@ -2,6 +2,7 @@ import { Response } from "express";
 import prisma from "../config/prisma";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { generateQuestions } from "../utils/ai.placeholder";
+import { evaluateResponse } from "../utils/ai.placeholder";
 
 export const createInterview = async (req: AuthRequest, res: Response) => {
   try {
@@ -94,5 +95,68 @@ export const addQuestionsToInterview = async (req: AuthRequest, res: Response) =
   } catch (error) {
     console.error("Add questions error:", error);
     res.status(500).json({ error: "Something went wrong generating questions" });
+  }
+};
+
+export const submitResponse = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    const questionId = parseInt(req.params.id as string);
+    const { answerText } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    if (!answerText) {
+      return res.status(400).json({ error: "answerText is required" });
+    }
+
+    const question = await prisma.question.findUnique({
+      where: { id: questionId },
+      include: { interview: true },
+    });
+
+    if (!question) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    if (question.interview.userId !== userId) {
+      return res.status(403).json({ error: "Not authorized to answer this question" });
+    }
+
+    const aiResult = await evaluateResponse({
+      questionText: question.text,
+      answerText,
+      interviewType: question.interview.type,
+    });
+
+    if (
+      !aiResult ||
+      typeof aiResult.correctnessScore !== "number" ||
+      typeof aiResult.communicationScore !== "number" ||
+      typeof aiResult.structureScore !== "number"
+    ) {
+      return res.status(502).json({ error: "AI service returned an unexpected response" });
+    }
+
+    const response = await prisma.response.create({
+      data: {
+        questionId,
+        answerText,
+        correctnessScore: aiResult.correctnessScore,
+        communicationScore: aiResult.communicationScore,
+        structureScore: aiResult.structureScore,
+        feedback: aiResult.feedback,
+      },
+    });
+
+    res.status(201).json({
+      message: "Response submitted and evaluated",
+      response,
+    });
+  } catch (error) {
+    console.error("Submit response error:", error);
+    res.status(500).json({ error: "Something went wrong submitting the response" });
   }
 };
