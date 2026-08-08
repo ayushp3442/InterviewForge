@@ -2,8 +2,6 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import authRoutes from "./routes/auth.routes";
-import { generalLimiter } from "./middleware/rateLimiter.middleware";
-import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
 
@@ -41,8 +39,5 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-
-// ── Centralized error handler (must be last) ──
-app.use(errorHandler);
 
 export default app;
