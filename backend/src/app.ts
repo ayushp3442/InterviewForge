@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import authRoutes from "./routes/auth.routes";
+import authRoutes from "./routes/auth.routes.js";
+import { generalLimiter } from "./middleware/rateLimiter.middleware.js";
+import { errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
 

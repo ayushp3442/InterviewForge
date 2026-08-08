@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import prisma from "../config/prisma";
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt";
-import { blacklistToken, isTokenBlacklisted } from "../utils/tokenBlacklist";
+import prisma from "../config/prisma.js";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
+import { blacklistToken, isTokenBlacklisted } from "../utils/tokenBlacklist.js";
 
 export const register = async (req: Request, res: Response) => {
   try {

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { createInterview,addQuestionsToInterview,submitResponse } from "../controllers/interview.controller";
-import { authenticate } from "../middleware/auth.middleware";
+import { createInterview,addQuestionsToInterview,submitResponse } from "../controllers/interview.controller.js";
+import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = Router();
 

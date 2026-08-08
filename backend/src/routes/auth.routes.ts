@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { register, login, refresh, logout } from "../controllers/auth.controller";
-import { authenticate, AuthRequest } from "../middleware/auth.middleware";
-import { authLimiter } from "../middleware/rateLimiter.middleware";
-import { validateRegister, validateLogin, validateRefresh } from "../middleware/validate.middleware";
+import { register, login, refresh, logout } from "../controllers/auth.controller.js";
+import { authenticate, AuthRequest } from "../middleware/auth.middleware.js";
+import { authLimiter } from "../middleware/rateLimiter.middleware.js";
+import { validateRegister, validateLogin, validateRefresh } from "../middleware/validate.middleware.js";
 import { Response } from "express";
 
 const router = Router();
