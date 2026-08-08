@@ -2,10 +2,13 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import prisma from "../config/prisma";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt";
+import { blacklistToken, isTokenBlacklisted } from "../utils/tokenBlacklist";
+
 export const register = async (req: Request, res: Response) => {
   try {
     const { name, email, password } = req.body;
 
+    // Input validation is handled by validate.middleware — these are fallback checks
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Name, email, and password are required" });
     }
@@ -43,6 +46,7 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
+    // Input validation is handled by validate.middleware — these are fallback checks
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
@@ -75,12 +79,18 @@ export const login = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Something went wrong during login" });
   }
 };
+
 export const refresh = async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
       return res.status(401).json({ error: "Refresh token is required" });
+    }
+
+    // Check if the token has been blacklisted (user logged out)
+    if (isTokenBlacklisted(refreshToken)) {
+      return res.status(403).json({ error: "Token has been revoked. Please log in again." });
     }
 
     let decoded;
@@ -106,10 +116,18 @@ export const refresh = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Something went wrong during token refresh" });
   }
 };
+
 export const logout = async (req: Request, res: Response) => {
   try {
+    const { refreshToken } = req.body;
+
+    // Blacklist the refresh token so it can't be used again
+    if (refreshToken && typeof refreshToken === "string") {
+      blacklistToken(refreshToken);
+    }
+
     res.status(200).json({
-      message: "Logout successful. Please clear tokens on the client side.",
+      message: "Logout successful. Token has been revoked.",
     });
   } catch (error) {
     console.error("Logout error:", error);
