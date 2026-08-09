@@ -1,12 +1,29 @@
 "use client";
 import { useState } from "react";
+import { signupUser } from "@/lib/api";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
+  async function handleSignup() {
+    setError("");
+    setLoading(true);
+    try {
+      await signupUser(name, email, password);
+      // TODO: redirect to /login or /dashboard on success
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+ }
+
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm bg-white rounded-xl p-8 shadow-sm border border-gray-200">
@@ -30,8 +47,14 @@ export default function SignupPage() {
         <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
           className="w-full border rounded-lg px-3 py-2 mb-5 text-sm" />
 
-        <button className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium">
-          Create account
+        {error && <p className="text-xs text-red-600 mb-3 text-center">{error}</p>}
+
+        <button
+          onClick={handleSignup}
+          disabled={loading}
+          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium"
+        >
+          {loading ? "Creating account..." : "Create account"}
         </button>
 
         <p className="text-center text-sm text-gray-500 mt-4">
