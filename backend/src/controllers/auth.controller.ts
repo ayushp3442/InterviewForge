@@ -57,7 +57,7 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const accessToken = generateAccessToken(user.id);
+    const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = generateRefreshToken(user.id);
 
     res.status(200).json({
@@ -95,7 +95,7 @@ export const refresh = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const newAccessToken = generateAccessToken(user.id);
+    const newAccessToken = generateAccessToken(user.id, user.role);
 
     res.status(200).json({
       message: "Token refreshed successfully",
