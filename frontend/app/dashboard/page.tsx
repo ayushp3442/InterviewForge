@@ -1,4 +1,7 @@
+"use client";
+import { useRouter } from "next/navigation";
 export default function DashboardPage() {
+  const router = useRouter();
   const recentActivity = [
     { type: "Technical — Backend role", date: "Jul 28", score: 78 },
     { type: "HR — General", date: "Jul 25", score: 65 },
@@ -17,10 +20,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Start interview button */}
-        <button className="w-full bg-gray-900 text-white rounded-lg py-3 text-sm font-medium mb-4">
+        <button
+          onClick={() => router.push("/interview-setup")}
+          className="w-full bg-gray-900 text-white rounded-lg py-3 text-sm font-medium mb-4"
+        >
           Start new interview
         </button>
-
         {/* Stat cards */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
