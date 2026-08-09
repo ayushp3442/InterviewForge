@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const placeholderQuestions = [
   "Tell me about yourself and your background.",
@@ -10,6 +11,7 @@ const placeholderQuestions = [
 ];
 
 export default function InterviewPage() {
+  const router = useRouter();
   const [currentQ, setCurrentQ] = useState(0);
   const [answer, setAnswer] = useState("");
   const [seconds, setSeconds] = useState(0);
@@ -29,8 +31,9 @@ export default function InterviewPage() {
     if (currentQ < placeholderQuestions.length - 1) {
       setCurrentQ(currentQ + 1);
       setAnswer("");
+    } else {
+      router.push("/report/placeholder-session");
     }
-    // TODO: on last question, redirect to /report/[sessionId]
   }
 
   const progress = ((currentQ + 1) / placeholderQuestions.length) * 100;
