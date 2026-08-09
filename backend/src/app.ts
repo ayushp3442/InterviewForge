@@ -13,7 +13,9 @@ app.use(helmet());
 
 // ── CORS — restrict to frontend origin ──
 const allowedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:3000",
+  "http://localhost:3000",
+  "https://interviewforge-chi.vercel.app",
+  process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 app.use(
