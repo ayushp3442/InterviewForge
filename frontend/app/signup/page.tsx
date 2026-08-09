@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { signupUser } from "@/lib/api";
 
 export default function SignupPage() {
@@ -10,18 +11,20 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const router = useRouter();
+
   async function handleSignup() {
     setError("");
     setLoading(true);
     try {
       await signupUser(name, email, password);
-      // TODO: redirect to /login or /dashboard on success
+      router.push("/login");
     } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
- }
+  }
 
   
   return (
