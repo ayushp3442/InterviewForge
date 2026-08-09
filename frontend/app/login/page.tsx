@@ -1,16 +1,26 @@
 "use client";
 import { useState } from "react";
+import { loginUser } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  async function handleLogin() {
-    setLoading(true);
-    // TODO: connect to real API later
-    setTimeout(() => setLoading(false), 1000);
+async function handleLogin() {
+  setError("");
+  setLoading(true);
+  try {
+    await loginUser(email, password);
+    // TODO: redirect to /dashboard on success
+  } catch (err: any) {
+    setError(err.message || "Something went wrong");
+  } finally {
+    setLoading(false);
   }
+}
+  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -41,6 +51,8 @@ export default function LoginPage() {
         <div className="text-right mb-5">
           <a href="#" className="text-xs text-blue-600">Forgot password?</a>
         </div>
+
+        {error && <p className="text-xs text-red-600 mb-3 text-center">{error}</p>}
 
         <button
           onClick={handleLogin}
