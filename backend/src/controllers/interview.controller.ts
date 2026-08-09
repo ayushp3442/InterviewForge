@@ -3,6 +3,7 @@ import prisma from "../config/prisma";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { generateQuestions } from "../utils/ai.placeholder";
 import { evaluateResponse } from "../utils/ai.placeholder";
+import { generateReport } from "../utils/ai.placeholder";
 
 export const createInterview = async (req: AuthRequest, res: Response) => {
   try {
@@ -158,5 +159,106 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error("Submit response error:", error);
     res.status(500).json({ error: "Something went wrong submitting the response" });
+  }
+};
+
+export const completeInterview = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    const interviewId = parseInt(req.params.id as string);
+
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const interview = await prisma.interview.findUnique({
+      where: { id: interviewId },
+      include: {
+        questions: {
+          include: { response: true },
+          orderBy: { orderIndex: "asc" },
+        },
+      },
+    });
+
+    if (!interview) {
+      return res.status(404).json({ error: "Interview not found" });
+    }
+
+    if (interview.userId !== userId) {
+      return res.status(403).json({ error: "Not authorized to complete this interview" });
+    }
+
+    if (interview.status === "completed") {
+      return res.status(400).json({ error: "Interview is already completed" });
+    }
+
+    type QuestionWithResponse = (typeof interview.questions)[number];
+
+    const answeredQuestions = interview.questions.filter(
+      (q: QuestionWithResponse) => q.response
+    );
+
+    if (answeredQuestions.length === 0) {
+      return res.status(400).json({
+        error: "Cannot complete an interview with no answered questions",
+      });
+    }
+
+    const qaPairs = answeredQuestions.map((q: QuestionWithResponse) => ({
+      questionText: q.text,
+      answerText: q.response!.answerText,
+      correctnessScore: q.response!.correctnessScore,
+      communicationScore: q.response!.communicationScore,
+      structureScore: q.response!.structureScore,
+    }));
+
+    const aiResult = await generateReport({
+      interviewType: interview.type,
+      role: interview.role,
+      domain: interview.domain,
+      difficulty: interview.difficulty,
+      qaPairs,
+    });
+
+    if (
+      !aiResult ||
+      typeof aiResult.overallScore !== "number" ||
+      !Array.isArray(aiResult.strengths) ||
+      !Array.isArray(aiResult.weaknesses)
+    ) {
+      return res.status(502).json({ error: "AI service returned an unexpected response" });
+    }
+
+    const [report, updatedInterview] = await prisma.$transaction([
+      prisma.report.create({
+        data: {
+          interviewId,
+          overallScore: aiResult.overallScore,
+          correctnessScore: aiResult.correctnessScore,
+          communicationScore: aiResult.communicationScore,
+          structureScore: aiResult.structureScore,
+          strengths: aiResult.strengths,
+          weaknesses: aiResult.weaknesses,
+          roadmapText: aiResult.roadmapText,
+        },
+      }),
+      prisma.interview.update({
+        where: { id: interviewId },
+        data: {
+          status: "completed",
+          completedAt: new Date(),
+        },
+      }),
+    ]);
+
+    res.status(201).json({
+      message: "Interview completed and report generated",
+      report,
+      interview: updatedInterview,
+    });
+  } catch (error) {
+    console.error("Complete interview error:", error);
+    res.status(500).json({ error: "Something went wrong completing the interview" });
   }
 };
