@@ -1,9 +1,9 @@
 import { Response } from "express";
-import prisma from "../config/prisma";
-import { AuthRequest } from "../middleware/auth.middleware";
-import { generateQuestions } from "../utils/ai.placeholder";
-import { evaluateResponse } from "../utils/ai.placeholder";
-import { generateReport } from "../utils/ai.placeholder";
+import prisma from "../config/prisma.js"; 
+import { AuthRequest } from "../middleware/auth.middleware.js"; 
+import { generateQuestions } from "../utils/ai.placeholder.js"; 
+import { evaluateResponse } from "../utils/ai.placeholder.js"; 
+import { generateReport } from "../utils/ai.placeholder.js";
 
 export const createInterview = async (req: AuthRequest, res: Response) => {
   try {
