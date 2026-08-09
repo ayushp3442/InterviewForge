@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import authRoutes from "./routes/auth.routes.js";
+import interviewRoutes from "./routes/interview.routes.js";
 import { generalLimiter } from "./middleware/rateLimiter.middleware.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 
@@ -41,5 +42,6 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/interviews", interviewRoutes);
 
 export default app;
