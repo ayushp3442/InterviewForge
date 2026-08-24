@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createInterview, addQuestionsToInterview } from "@/lib/api";
 
 const categories = ["Technical", "HR", "Mixed"];
 const roles = ["Backend Developer", "Frontend Developer", "Full Stack Developer", "Data Analyst"];
@@ -13,13 +14,37 @@ export default function InterviewSetupPage() {
   const [role, setRole] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [mode, setMode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const canStart = category && role && difficulty && mode;
+  const canStart = category && role && difficulty && mode && !loading;
 
-  function handleStart() {
-    // TODO: call POST /api/interviews with { type: category, role, difficulty, mode }
-    // for now, use a placeholder session id
-    router.push("/interview/placeholder-session");
+  async function handleStart() {
+    setError("");
+    setLoading(true);
+    try {
+      // 1. Create interview session
+      const createRes = await createInterview({
+        type: category,
+        role,
+        domain: role, // Use role as domain scope
+        difficulty,
+        mode,
+      });
+
+      const interviewId = createRes.interview.id;
+
+      // 2. Generate and add questions via Gemini
+      await addQuestionsToInterview(interviewId);
+
+      // 3. Redirect to active interview session page
+      router.push(`/interview/${interviewId}`);
+    } catch (err: any) {
+      console.error("Start interview error:", err);
+      setError(err.message || "Failed to start interview. Please ensure database and server are running.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -97,12 +122,14 @@ export default function InterviewSetupPage() {
           ))}
         </div>
 
+        {error && <p className="text-xs text-red-600 mb-3 text-center">{error}</p>}
+
         <button
           onClick={handleStart}
           disabled={!canStart}
           className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium disabled:opacity-40"
         >
-          Start Interview
+          {loading ? "Generating AI questions..." : "Start Interview"}
         </button>
       </div>
     </div>

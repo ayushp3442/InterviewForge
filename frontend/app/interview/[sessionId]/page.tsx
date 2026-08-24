@@ -1,25 +1,57 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-const placeholderQuestions = [
-  "Tell me about yourself and your background.",
-  "Explain the difference between REST and GraphQL.",
-  "Describe a challenging project you worked on.",
-  "How do you handle state management in React?",
-  "What is your biggest weakness as a developer?",
-];
+import { useRouter, useParams } from "next/navigation";
+import { getInterviewReport, submitResponse, completeInterview } from "@/lib/api";
 
 export default function InterviewPage() {
   const router = useRouter();
+  const params = useParams();
+  const sessionId = params.sessionId ? parseInt(params.sessionId as string) : NaN;
+
+  const [questions, setQuestions] = useState<any[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [answer, setAnswer] = useState("");
   const [seconds, setSeconds] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    if (isNaN(sessionId)) {
+      setError("Invalid session ID");
+      setLoading(false);
+      return;
+    }
+
+    async function loadQuestions() {
+      try {
+        const data = await getInterviewReport(sessionId);
+        if (data.interview && Array.isArray(data.interview.questions)) {
+          setQuestions(data.interview.questions);
+          // If the user already answered some questions, resume from the first unanswered one
+          const firstUnanswered = data.interview.questions.findIndex((q: any) => !q.response);
+          if (firstUnanswered !== -1) {
+            setCurrentQ(firstUnanswered);
+          }
+        } else {
+          setError("No questions found for this interview.");
+        }
+      } catch (err: any) {
+        console.error("Load questions error:", err);
+        setError(err.message || "Failed to load questions. Make sure the database is restored.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadQuestions();
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (loading || submitting) return;
     const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [loading, submitting]);
 
   function formatTime(s: number) {
     const m = Math.floor(s / 60).toString().padStart(2, "0");
@@ -27,23 +59,65 @@ export default function InterviewPage() {
     return `${m}:${sec}`;
   }
 
-  function handleNext() {
-    if (currentQ < placeholderQuestions.length - 1) {
-      setCurrentQ(currentQ + 1);
-      setAnswer("");
-    } else {
-      router.push("/report/placeholder-session");
+  async function handleNext() {
+    if (!answer.trim()) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      const currentQuestionId = questions[currentQ].id;
+      // 1. Submit response and evaluate via AI
+      await submitResponse(currentQuestionId, answer);
+
+      if (currentQ < questions.length - 1) {
+        setCurrentQ(currentQ + 1);
+        setAnswer("");
+      } else {
+        // Last question answered - finalize interview and generate report
+        await completeInterview(sessionId);
+        router.push(`/report/${sessionId}`);
+      }
+    } catch (err: any) {
+      console.error("Submit response error:", err);
+      setError(err.message || "Failed to submit response. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  const progress = ((currentQ + 1) / placeholderQuestions.length) * 100;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-sm text-gray-500">Loading interview questions...</p>
+      </div>
+    );
+  }
+
+  if (error && questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 text-center max-w-sm">
+          <p className="text-sm text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="bg-gray-900 text-white rounded-lg px-4 py-2 text-sm font-medium"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const progress = questions.length > 0 ? ((currentQ + 1) / questions.length) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-xl mx-auto">
         {/* Progress bar */}
         <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>Question {currentQ + 1} of {placeholderQuestions.length}</span>
+          <span>
+            Question {currentQ + 1} of {questions.length}
+          </span>
           <span>{formatTime(seconds)}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
@@ -55,23 +129,33 @@ export default function InterviewPage() {
 
         {/* Question card */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-4">
-          <p className="text-base font-medium">{placeholderQuestions[currentQ]}</p>
+          <p className="text-base font-medium">{questions[currentQ]?.text}</p>
         </div>
 
         {/* Answer input */}
         <textarea
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
+          disabled={submitting}
           placeholder="Type your answer here..."
           rows={6}
-          className="w-full border rounded-lg p-3 text-sm mb-4"
+          className="w-full border rounded-lg p-3 text-sm mb-4 disabled:opacity-50"
         />
+
+        {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
 
         <button
           onClick={handleNext}
-          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium"
+          disabled={submitting || !answer.trim()}
+          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium disabled:opacity-40"
         >
-          {currentQ < placeholderQuestions.length - 1 ? "Next question" : "Submit interview"}
+          {submitting
+            ? currentQ < questions.length - 1
+              ? "Submitting and evaluating..."
+              : "Compiling final report..."
+            : currentQ < questions.length - 1
+            ? "Next question"
+            : "Submit interview"}
         </button>
       </div>
     </div>

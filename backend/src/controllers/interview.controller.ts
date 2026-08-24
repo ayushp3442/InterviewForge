@@ -262,3 +262,48 @@ export const completeInterview = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Something went wrong completing the interview" });
   }
 };
+
+export const getInterviewReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    const interviewId = parseInt(req.params.id as string);
+
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    if (isNaN(interviewId)) {
+      return res.status(400).json({ error: "Invalid interview ID" });
+    }
+
+    const interview = await prisma.interview.findUnique({
+      where: { id: interviewId },
+      include: {
+        questions: {
+          include: {
+            response: true,
+          },
+          orderBy: {
+            orderIndex: "asc",
+          },
+        },
+        report: true,
+      },
+    });
+
+    if (!interview) {
+      return res.status(404).json({ error: "Interview not found" });
+    }
+
+    if (interview.userId !== userId) {
+      return res.status(403).json({ error: "Not authorized to access this interview report" });
+    }
+
+    res.status(200).json({
+      interview,
+    });
+  } catch (error) {
+    console.error("Get interview report error:", error);
+    res.status(500).json({ error: "Something went wrong fetching the report" });
+  }
+};
