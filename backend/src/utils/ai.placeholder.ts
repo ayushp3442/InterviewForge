@@ -2,7 +2,7 @@
 
 
 const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = "gemini-1.5-flash"; // Free stable flash model
+const MODEL = "gemini-3.5-flash"; // Gemini 3.5 Flash
 
 const callGemini = async (prompt: string): Promise<string> => {
   if (!API_KEY) {
