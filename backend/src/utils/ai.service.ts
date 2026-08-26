@@ -17,7 +17,7 @@
 // ── Config ──────────────────────────────────────────────────────────────
 
 const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = "gemini-3.5-flash";
+const MODEL = "gemini-2.0-flash";
 const MAX_RETRIES = 1; // Retry once on validation failure, per API contract
 
 // ── Gemini HTTP caller ──────────────────────────────────────────────────

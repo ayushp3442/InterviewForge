@@ -2,8 +2,9 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getInterviewReport, submitResponse, completeInterview } from "@/lib/api";
+import AuthGuard from "@/components/AuthGuard";
 
-export default function InterviewPage() {
+function InterviewContent() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params.sessionId ? parseInt(params.sessionId as string) : NaN;
@@ -28,7 +29,7 @@ export default function InterviewPage() {
         const data = await getInterviewReport(sessionId);
         if (data.interview && Array.isArray(data.interview.questions)) {
           setQuestions(data.interview.questions);
-          // If the user already answered some questions, resume from the first unanswered one
+          // Resume from first unanswered question
           const firstUnanswered = data.interview.questions.findIndex((q: any) => !q.response);
           if (firstUnanswered !== -1) {
             setCurrentQ(firstUnanswered);
@@ -87,7 +88,10 @@ export default function InterviewPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-sm text-gray-500">Loading interview questions...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin" />
+          <p className="text-sm text-gray-500">Loading interview questions...</p>
+        </div>
       </div>
     );
   }
@@ -122,14 +126,19 @@ export default function InterviewPage() {
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
           <div
-            className="bg-gray-900 h-2 rounded-full transition-all"
+            className="bg-gray-900 h-2 rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
 
         {/* Question card */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-4">
-          <p className="text-base font-medium">{questions[currentQ]?.text}</p>
+          <p className="text-base font-medium leading-relaxed">{questions[currentQ]?.text}</p>
+          {questions[currentQ]?.sourceSkill && (
+            <span className="mt-2 inline-block text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+              {questions[currentQ].sourceSkill}
+            </span>
+          )}
         </div>
 
         {/* Answer input */}
@@ -139,7 +148,7 @@ export default function InterviewPage() {
           disabled={submitting}
           placeholder="Type your answer here..."
           rows={6}
-          className="w-full border rounded-lg p-3 text-sm mb-4 disabled:opacity-50"
+          className="w-full border rounded-lg p-3 text-sm mb-4 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
         />
 
         {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
@@ -147,17 +156,25 @@ export default function InterviewPage() {
         <button
           onClick={handleNext}
           disabled={submitting || !answer.trim()}
-          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium disabled:opacity-40"
+          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-40"
         >
           {submitting
             ? currentQ < questions.length - 1
               ? "Submitting and evaluating..."
               : "Compiling final report..."
             : currentQ < questions.length - 1
-            ? "Next question"
+            ? "Next question →"
             : "Submit interview"}
         </button>
       </div>
     </div>
+  );
+}
+
+export default function InterviewPage() {
+  return (
+    <AuthGuard>
+      <InterviewContent />
+    </AuthGuard>
   );
 }

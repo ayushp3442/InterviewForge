@@ -2,8 +2,9 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getInterviewReport } from "@/lib/api";
+import AuthGuard from "@/components/AuthGuard";
 
-export default function ReportPage() {
+function ReportContent() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params.sessionId ? parseInt(params.sessionId as string) : NaN;
@@ -41,8 +42,7 @@ export default function ReportPage() {
   const handleExportTxt = () => {
     if (!data) return;
     const { report, role, type, difficulty, questions } = data;
-    
-    // Parse JSON arrays for strengths and weaknesses
+
     const strengths = Array.isArray(report.strengths) ? report.strengths : JSON.parse(report.strengths || "[]");
     const weaknesses = Array.isArray(report.weaknesses) ? report.weaknesses : JSON.parse(report.weaknesses || "[]");
 
@@ -69,11 +69,11 @@ KEY WEAKNESSES / IMPROVEMENTS
 ${weaknesses.map((w: string) => `• ${w}`).join("\n")}
 
 PERSONALIZED LEARNING ROADMAP
------------------------------
+------------------------------
 ${report.roadmapText}
 
 QUESTION-BY-QUESTION BREAKDOWN
-------------------------------
+--------------------------------
 `;
 
     questions.forEach((q: any, i: number) => {
@@ -85,7 +85,7 @@ Correctness Score: ${resp.correctnessScore ? resp.correctnessScore * 10 : 0}%
 Communication Score: ${resp.communicationScore ? resp.communicationScore * 10 : 0}%
 Structure Score: ${resp.structureScore ? resp.structureScore * 10 : 0}%
 Feedback: ${resp.feedback || "No feedback generated."}
-------------------------------
+--------------------------------
 `;
     });
 
@@ -105,7 +105,10 @@ Feedback: ${resp.feedback || "No feedback generated."}
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-sm text-gray-500">Loading interview report...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin" />
+          <p className="text-sm text-gray-500">Loading interview report...</p>
+        </div>
       </div>
     );
   }
@@ -133,7 +136,7 @@ Feedback: ${resp.feedback || "No feedback generated."}
   return (
     <div className="min-h-screen bg-gray-50 p-6 print:bg-white print:p-0">
       <div className="max-w-2xl mx-auto print:max-w-none print:w-full">
-        
+
         {/* Header section */}
         <div className="flex justify-between items-center mb-6 print:block print:mb-4">
           <div>
@@ -145,21 +148,27 @@ Feedback: ${resp.feedback || "No feedback generated."}
           <div className="flex gap-2 print:hidden">
             <button
               onClick={() => router.push("/dashboard")}
-              className="px-3 py-1.5 border rounded-lg text-xs font-medium bg-white text-gray-700 hover:bg-gray-50"
+              className="px-3 py-1.5 border rounded-lg text-xs font-medium bg-white text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Dashboard
             </button>
             <button
+              onClick={() => router.push("/history")}
+              className="px-3 py-1.5 border rounded-lg text-xs font-medium bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              History
+            </button>
+            <button
               onClick={handleExportTxt}
-              className="px-3 py-1.5 border rounded-lg text-xs font-medium bg-white text-gray-700 hover:bg-gray-50"
+              className="px-3 py-1.5 border rounded-lg text-xs font-medium bg-white text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Export TXT
             </button>
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-800"
+              className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors"
             >
-              Print / Save PDF
+              Print / PDF
             </button>
           </div>
         </div>
@@ -171,7 +180,7 @@ Feedback: ${resp.feedback || "No feedback generated."}
         </div>
 
         {/* Sub-scores */}
-        <div className="grid grid-cols-3 gap-3 mb-4 print:grid-cols-3 print:gap-3">
+        <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 text-center print:border print:shadow-none">
             <p className="text-xs text-gray-500 mb-1">Correctness</p>
             <p className="text-xl font-semibold text-gray-900">{report.correctnessScore * 10}%</p>
@@ -187,7 +196,7 @@ Feedback: ${resp.feedback || "No feedback generated."}
         </div>
 
         {/* Strengths & Weaknesses */}
-        <div className="grid grid-cols-2 gap-4 mb-4 print:grid-cols-2 print:gap-4 print:mb-4">
+        <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 print:border print:shadow-none">
             <h2 className="text-sm font-semibold text-green-700 mb-2">Key Strengths</h2>
             <ul className="list-disc pl-4 text-xs text-gray-600 space-y-1">
@@ -207,7 +216,7 @@ Feedback: ${resp.feedback || "No feedback generated."}
         </div>
 
         {/* Learning Roadmap */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 mb-4 print:border print:shadow-none print:mb-4">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 mb-4 print:border print:shadow-none">
           <h2 className="text-sm font-semibold text-gray-900 mb-2">AI-Powered Learning Roadmap</h2>
           <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">{report.roadmapText}</p>
         </div>
@@ -226,7 +235,7 @@ Feedback: ${resp.feedback || "No feedback generated."}
                   <p className="text-xs text-gray-500 mb-2 italic">
                     Your answer: "{resp.answerText || "No response provided"}"
                   </p>
-                  
+
                   {/* Scores */}
                   <div className="flex gap-4 text-[10px] text-gray-500 mb-2">
                     <span>Correctness: <strong>{resp.correctnessScore ? resp.correctnessScore * 10 : 0}%</strong></span>
@@ -243,7 +252,25 @@ Feedback: ${resp.feedback || "No feedback generated."}
           </div>
         </div>
 
+        {/* Start new interview CTA */}
+        <div className="mt-4 print:hidden">
+          <button
+            onClick={() => router.push("/interview-setup")}
+            className="w-full bg-gray-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            Start another interview
+          </button>
+        </div>
+
       </div>
     </div>
+  );
+}
+
+export default function ReportPage() {
+  return (
+    <AuthGuard>
+      <ReportContent />
+    </AuthGuard>
   );
 }
