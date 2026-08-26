@@ -149,25 +149,66 @@ Notes:
 
 ---
 
+## 4. parseResume (NEW — Phase 5)
+
+Called when: student uploads a resume PDF/DOCX at `/resume-upload`. Backend
+extracts raw text (e.g. via `pdf-parse`) and passes the text string into this AI function.
+
+### Input
+
+```json
+{
+  "rawText": "Jane Student\njane@example.com\nSkills: React, Node.js, PostgreSQL, Docker\nProjects:\n• E-commerce Platform: Built full-stack store with Next.js and Prisma...\nEducation: B.Tech Computer Science (2025)"
+}
+```
+
+### Output
+
+```json
+{
+  "name": "Jane Student",
+  "email": "jane@example.com",
+  "skills": ["React", "Node.js", "PostgreSQL", "Docker"],
+  "projects": [
+    {
+      "title": "E-commerce Platform",
+      "techStack": ["Next.js", "Prisma", "PostgreSQL"],
+      "description": "Built full-stack store with Next.js and Prisma"
+    }
+  ],
+  "experience": [],
+  "education": [
+    {
+      "degree": "B.Tech Computer Science",
+      "institution": "University Institute of Technology",
+      "year": "2025"
+    }
+  ]
+}
+```
+
+Notes:
+- `skills` is an array of strings → saved in `Resume.parsedJson.skills`.
+- `projects` is an array of project objects (`title`, `techStack`, `description`) → saved in `Resume.parsedJson.projects`.
+- Both `skills` and `projects` from this output are passed directly into `generateQuestions` (Section 1) during interview sessions.
+- Backend stores the complete JSON in `Resume.parsedJson` in PostgreSQL.
+- Frontend review/edit screen (`/resume-upload`) receives this JSON so the candidate can add, remove, or edit skills before starting their interview session.
+
+---
+
 ## Shared conventions
 
 - All AI Service functions return **pure JSON**, no markdown fences. Backend
   strips/validates before trusting (see JSON-schema validation, Phase 4).
-- Scores are always integers 0–10 across all three functions — one
+- Scores are always integers 0–10 across all scoring functions — one
   consistent scale, no mixing (e.g. no 0–100 anywhere).
 - If Gemini output fails schema validation, AI Service retries once with a
   stricter prompt before throwing an error the backend can catch.
-- Model used: `gemini-flash-latest` (alias — do not hardcode a dated
-  version like `gemini-2.5-flash`, these get deprecated for new projects
-  without warning).
+- Model used: `gemini-3.5-flash`.
 
 ---
 
-## Open questions for the team
+## Team Handover Notes
 
-1. Krishna — does the Live Interview screen need questions delivered one at
-   a time, or all 5 upfront? (Affects whether `generateQuestions` is called
-   once per session or is a single batch call.)
-2. Akhilesh — should score validation (0–10 range check) happen in the AI
-   Service layer or the backend controller layer? Proposing AI Service does
-   it, since it owns the JSON-schema validation step per the roadmap.
+1. **Akhilesh (Backend):** When creating `POST /api/resumes/upload`, extract text from the uploaded PDF using `pdf-parse` and call `parseResume(rawText)`. Save the result into `prisma.resume.create({ data: { userId, fileUrl, parsedJson } })`. In `addQuestionsToInterview`, fetch `user.resumes[0].parsedJson` and pass `resumeSkills` and `resumeProjects` to `generateQuestions()`.
+2. **Krishna (Frontend):** In `/resume-upload`, render the returned `skills` array as editable tags so candidates can review, add, or remove skills before starting an interview session.
