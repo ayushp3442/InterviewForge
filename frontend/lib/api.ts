@@ -13,6 +13,17 @@ type RegisterResponse = {
 };
 
 async function handleResponse<T>(res: Response): Promise<T> {
+  // Handle 401 — token expired or missing, redirect to login
+  if (res.status === 401 || res.status === 403) {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
+    throw new Error("Session expired. Please log in again.");
+  }
+
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error || "Something went wrong");
@@ -47,6 +58,14 @@ function getHeaders(): HeadersInit {
     }
   }
   return headers;
+}
+
+export async function listInterviews(): Promise<any> {
+  const res = await fetch(`${API_URL}/interviews`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+  return handleResponse<any>(res);
 }
 
 export async function createInterview(data: {
@@ -93,6 +112,15 @@ export async function getInterviewReport(interviewId: number): Promise<any> {
   const res = await fetch(`${API_URL}/interviews/${interviewId}/report`, {
     method: "GET",
     headers: getHeaders(),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function logoutUser(refreshToken: string): Promise<any> {
+  const res = await fetch(`${API_URL}/auth/logout`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ refreshToken }),
   });
   return handleResponse<any>(res);
 }

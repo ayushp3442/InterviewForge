@@ -17,7 +17,7 @@
 // ── Config ──────────────────────────────────────────────────────────────
 
 const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = "gemini-3.5-flash";
+const MODEL = "gemini-2.0-flash";
 const MAX_RETRIES = 1; // Retry once on validation failure, per API contract
 
 // ── Gemini HTTP caller ──────────────────────────────────────────────────
@@ -27,32 +27,58 @@ const callGemini = async (prompt: string): Promise<string> => {
     throw new Error("GEMINI_API_KEY is not configured in .env");
   }
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
-      }),
+  const maxNetworkAttempts = 3;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxNetworkAttempts; attempt++) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+            },
+          }),
+        }
+      );
+
+      if (res.status === 503 || res.status === 429) {
+        const errorData = await res.json().catch(() => ({}));
+        console.warn(`[Gemini API] HTTP ${res.status} encountered (attempt ${attempt}/${maxNetworkAttempts}). Retrying after delay...`);
+        if (attempt < maxNetworkAttempts) {
+          await new Promise((r) => setTimeout(r, attempt * 1500));
+          continue;
+        }
+        throw new Error(`Gemini API error: ${res.status} ${JSON.stringify(errorData)}`);
+      }
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(`Gemini API error: ${res.status} ${JSON.stringify(errorData)}`);
+      }
+
+      const data = (await res.json()) as any;
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) {
+        throw new Error("Gemini API returned an empty response");
+      }
+
+      return rawText;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxNetworkAttempts && (lastError.message.includes("503") || lastError.message.includes("429"))) {
+        await new Promise((r) => setTimeout(r, attempt * 1500));
+        continue;
+      }
+      throw lastError;
     }
-  );
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(`Gemini API error: ${res.status} ${JSON.stringify(errorData)}`);
   }
 
-  const data = (await res.json()) as any;
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) {
-    throw new Error("Gemini API returned an empty response");
-  }
-
-  return rawText;
+  throw lastError || new Error("Gemini API request failed");
 };
 
 // ── Validation Helpers ──────────────────────────────────────────────────
@@ -137,35 +163,35 @@ Do NOT include any text outside the JSON object.`;
 
 // ── Types ───────────────────────────────────────────────────────────────
 
-interface GenerateQuestionsInput {
+export interface GenerateQuestionsInput {
   interviewType: string;
   role: string;
   domain: string;
   difficulty: string;
   resumeSkills?: string[];
-  resumeProjects?: string[];
+  resumeProjects?: Array<{ title: string; techStack?: string[]; description?: string }> | string[];
   questionCount?: number;
 }
 
-interface GeneratedQuestion {
+export interface GeneratedQuestion {
   text: string;
   sourceSkill: string | null;
 }
 
-interface EvaluateResponseInput {
+export interface EvaluateResponseInput {
   questionText: string;
   answerText: string;
   interviewType: string;
 }
 
-interface EvaluatedResponse {
+export interface EvaluatedResponse {
   correctnessScore: number;
   communicationScore: number;
   structureScore: number;
   feedback: string;
 }
 
-interface QAPair {
+export interface QAPair {
   questionText: string;
   answerText: string;
   correctnessScore: number | null;
@@ -173,7 +199,7 @@ interface QAPair {
   structureScore: number | null;
 }
 
-interface GenerateReportInput {
+export interface GenerateReportInput {
   interviewType: string;
   role: string;
   domain: string;
@@ -181,7 +207,7 @@ interface GenerateReportInput {
   qaPairs: QAPair[];
 }
 
-interface GeneratedReport {
+export interface GeneratedReport {
   overallScore: number;
   correctnessScore: number;
   communicationScore: number;
@@ -191,31 +217,184 @@ interface GeneratedReport {
   roadmapText: string;
 }
 
-// ── 1. generateQuestions ────────────────────────────────────────────────
+export interface ParsedResumeProject {
+  title: string;
+  techStack: string[];
+  description: string;
+}
+
+export interface ParsedResumeExperience {
+  role: string;
+  company: string;
+  duration: string | null;
+}
+
+export interface ParsedResumeEducation {
+  degree: string;
+  institution: string;
+  year: string | null;
+}
+
+export interface ParsedResumeData {
+  name: string | null;
+  email: string | null;
+  skills: string[];
+  projects: ParsedResumeProject[];
+  experience: ParsedResumeExperience[];
+  education: ParsedResumeEducation[];
+}
+
+// ── 1. parseResume ──────────────────────────────────────────────────────
+
+export const parseResume = async (
+  rawText: string
+): Promise<ParsedResumeData> => {
+  const prompt = `You are an expert AI resume parser. Extract structured information from the candidate's resume text below.
+
+Resume Text:
+"""
+${rawText}
+"""
+
+Instructions:
+Extract the following structured fields:
+1. "name": Full name of the candidate (string, or null if not found).
+2. "email": Email address of the candidate (string, or null if not found).
+3. "skills": Array of distinct technical and professional skills, tools, frameworks, and programming languages (array of strings).
+4. "projects": Array of projects mentioned in the resume. Each project must have:
+   - "title": Title/name of the project (string).
+   - "techStack": Array of technologies/libraries used in the project (array of strings).
+   - "description": 1-2 sentence summary of what the project does (string).
+5. "experience": Array of work experience / internships. Each item must have:
+   - "role": Job title (string).
+   - "company": Company name (string).
+   - "duration": Duration or timeframe (string, or null).
+6. "education": Array of degrees/institutions. Each item must have:
+   - "degree": Degree name or field of study (string).
+   - "institution": University / College name (string).
+   - "year": Graduation year or timeframe (string, or null).
+
+Provide response in JSON matching the exact schema:
+{
+  "name": "string | null",
+  "email": "string | null",
+  "skills": ["string"],
+  "projects": [
+    {
+      "title": "string",
+      "techStack": ["string"],
+      "description": "string"
+    }
+  ],
+  "experience": [
+    {
+      "role": "string",
+      "company": "string",
+      "duration": "string | null"
+    }
+  ],
+  "education": [
+    {
+      "degree": "string",
+      "institution": "string",
+      "year": "string | null"
+    }
+  ]
+}`;
+
+  const validateResume = (parsed: any): ParsedResumeData => {
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error("Parsed resume output must be a JSON object");
+    }
+
+    const name = typeof parsed.name === "string" && parsed.name.trim().length > 0 ? parsed.name.trim() : null;
+    const email = typeof parsed.email === "string" && parsed.email.trim().length > 0 ? parsed.email.trim() : null;
+    const skills = Array.isArray(parsed.skills)
+      ? parsed.skills.filter((s: any) => typeof s === "string" && s.trim().length > 0).map((s: string) => s.trim())
+      : [];
+
+    const projects: ParsedResumeProject[] = Array.isArray(parsed.projects)
+      ? parsed.projects.map((p: any, i: number) => ({
+          title: typeof p.title === "string" && p.title.trim().length > 0 ? p.title.trim() : `Project ${i + 1}`,
+          techStack: Array.isArray(p.techStack)
+            ? p.techStack.filter((t: any) => typeof t === "string" && t.trim().length > 0).map((t: string) => t.trim())
+            : [],
+          description: typeof p.description === "string" ? p.description.trim() : "",
+        }))
+      : [];
+
+    const experience: ParsedResumeExperience[] = Array.isArray(parsed.experience)
+      ? parsed.experience.map((e: any) => ({
+          role: typeof e.role === "string" ? e.role.trim() : "Position",
+          company: typeof e.company === "string" ? e.company.trim() : "Company",
+          duration: typeof e.duration === "string" && e.duration.trim().length > 0 ? e.duration.trim() : null,
+        }))
+      : [];
+
+    const education: ParsedResumeEducation[] = Array.isArray(parsed.education)
+      ? parsed.education.map((ed: any) => ({
+          degree: typeof ed.degree === "string" ? ed.degree.trim() : "Degree",
+          institution: typeof ed.institution === "string" ? ed.institution.trim() : "Institution",
+          year: typeof ed.year === "string" && ed.year.trim().length > 0 ? ed.year.trim() : null,
+        }))
+      : [];
+
+    return {
+      name,
+      email,
+      skills,
+      projects,
+      experience,
+      education,
+    };
+  };
+
+  return callGeminiWithValidation(prompt, validateResume);
+};
+
+// ── 2. generateQuestions ────────────────────────────────────────────────
 
 export const generateQuestions = async (
   input: GenerateQuestionsInput
 ): Promise<{ questions: GeneratedQuestion[] }> => {
   const count = input.questionCount || 5;
 
-  const prompt = `You are an expert technical interviewer. Generate exactly ${count} interview questions for a candidate.
+  const hasResume =
+    (input.resumeSkills && input.resumeSkills.length > 0) ||
+    (input.resumeProjects && Array.isArray(input.resumeProjects) && input.resumeProjects.length > 0);
+
+  const formattedProjects = Array.isArray(input.resumeProjects)
+    ? input.resumeProjects.map((p) => (typeof p === "string" ? p : `${p.title} (${p.techStack?.join(", ") || "General"}): ${p.description || ""}`)).join("; ")
+    : "";
+
+  const prompt = `You are an expert technical interviewer conducting a mock interview for a candidate.
+Generate exactly ${count} interview questions for this session.
+
 Interview Details:
 - Interview Type: ${input.interviewType} (e.g. Technical, HR, Mixed)
-- Candidate Role: ${input.role} (e.g. Frontend Developer)
-- Target Domain/Skillset: ${input.domain} (e.g. React, Node.js)
+- Candidate Target Role: ${input.role} (e.g. Frontend Developer, Backend Developer, Full Stack Developer)
+- Target Domain/Skillset: ${input.domain}
 - Difficulty Level: ${input.difficulty} (e.g. Beginner, Intermediate, Advanced)
-${input.resumeSkills && input.resumeSkills.length > 0 ? `- Candidate Resume Skills: ${input.resumeSkills.join(", ")}` : ""}
-${input.resumeProjects && input.resumeProjects.length > 0 ? `- Candidate Resume Projects: ${input.resumeProjects.join(", ")}` : ""}
+${input.resumeSkills && input.resumeSkills.length > 0 ? `- Candidate Verified Skills from Resume: ${input.resumeSkills.join(", ")}` : ""}
+${formattedProjects ? `- Candidate Projects from Resume: ${formattedProjects}` : ""}
 
 Instructions:
-- Each question must be highly tailored to the role, domain, and difficulty.
-- If Candidate Resume Skills are provided, try to align each question with one of those skills and specify that skill in the "sourceSkill" field. If a question is generic or not specifically derived from a resume skill, set "sourceSkill" to null.
-- Provide response in JSON matching the exact schema:
+${
+  hasResume
+    ? `- PERSONALIZATION RULE: At least 2-3 questions MUST be directly tailored to the candidate's actual projects and skills from their resume (e.g. "I see you worked on [Project Title] with [Tech]. How did you handle [challenge/design]?" or "In your [Project Title] project, why did you decide to use [Tech] over alternatives?").
+- For each question that evaluates or references a specific resume skill or project tech, set "sourceSkill" to that exact skill name (e.g. "React", "PostgreSQL", "Docker", "Node.js").
+- For generic conceptual or behavioral questions not derived from a specific resume skill, set "sourceSkill" to null.`
+    : `- Generate high-quality, relevant questions tailored to the specified role, domain, and difficulty level.
+- Set "sourceSkill" to null for each question.`
+}
+- Questions must match the specified difficulty: Beginner (fundamentals and syntax), Intermediate (practical patterns, tradeoffs, architecture), Advanced (system design, edge cases, scaling, performance optimization).
+
+Provide response in JSON matching the exact schema:
 {
   "questions": [
     {
       "text": "The text of the question",
-      "sourceSkill": "React" // or null
+      "sourceSkill": "React" // exact skill name or null
     }
   ]
 }`;
@@ -246,7 +425,7 @@ Instructions:
   return callGeminiWithValidation(prompt, validateQuestions);
 };
 
-// ── 2. evaluateResponse ─────────────────────────────────────────────────
+// ── 3. evaluateResponse ─────────────────────────────────────────────────
 
 export const evaluateResponse = async (
   input: EvaluateResponseInput

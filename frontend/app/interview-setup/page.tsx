@@ -2,13 +2,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createInterview, addQuestionsToInterview } from "@/lib/api";
+import AuthGuard from "@/components/AuthGuard";
 
 const categories = ["Technical", "HR", "Mixed"];
 const roles = ["Backend Developer", "Frontend Developer", "Full Stack Developer", "Data Analyst"];
 const difficulties = ["Beginner", "Intermediate", "Advanced"];
 const modes = ["Text", "Voice (Beta)"];
 
-export default function InterviewSetupPage() {
+function InterviewSetupContent() {
   const router = useRouter();
   const [category, setCategory] = useState("");
   const [role, setRole] = useState("");
@@ -50,6 +51,15 @@ export default function InterviewSetupPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md bg-white rounded-xl p-8 shadow-sm border border-gray-200">
+        <div className="flex items-center gap-2 mb-6">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="text-gray-400 hover:text-gray-700 text-sm transition-colors"
+          >
+            ← Back
+          </button>
+        </div>
+
         <h1 className="text-lg font-medium mb-1 text-center">Set up your interview</h1>
         <p className="text-sm text-gray-500 mb-6 text-center">
           Choose your preferences to get started
@@ -62,10 +72,10 @@ export default function InterviewSetupPage() {
             <button
               key={c}
               onClick={() => setCategory(c)}
-              className={`text-sm py-2 rounded-lg border ${
+              className={`text-sm py-2 rounded-lg border transition-colors ${
                 category === c
                   ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-700 border-gray-300"
+                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
               }`}
             >
               {c}
@@ -78,7 +88,7 @@ export default function InterviewSetupPage() {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 mb-4 text-sm"
+          className="w-full border rounded-lg px-3 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
         >
           <option value="">Select a role</option>
           {roles.map((r) => (
@@ -93,10 +103,10 @@ export default function InterviewSetupPage() {
             <button
               key={d}
               onClick={() => setDifficulty(d)}
-              className={`text-sm py-2 rounded-lg border ${
+              className={`text-sm py-2 rounded-lg border transition-colors ${
                 difficulty === d
                   ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-700 border-gray-300"
+                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
               }`}
             >
               {d}
@@ -111,10 +121,10 @@ export default function InterviewSetupPage() {
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`text-sm py-2 rounded-lg border ${
+              className={`text-sm py-2 rounded-lg border transition-colors ${
                 mode === m
                   ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-700 border-gray-300"
+                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
               }`}
             >
               {m}
@@ -127,11 +137,19 @@ export default function InterviewSetupPage() {
         <button
           onClick={handleStart}
           disabled={!canStart}
-          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium disabled:opacity-40"
+          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-40"
         >
           {loading ? "Generating AI questions..." : "Start Interview"}
         </button>
       </div>
     </div>
+  );
+}
+
+export default function InterviewSetupPage() {
+  return (
+    <AuthGuard>
+      <InterviewSetupContent />
+    </AuthGuard>
   );
 }

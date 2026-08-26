@@ -306,3 +306,33 @@ export const getInterviewReport = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Something went wrong fetching the report" });
   }
 };
+
+export const listInterviews = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const interviews = await prisma.interview.findMany({
+      where: { userId },
+      include: {
+        report: {
+          select: {
+            overallScore: true,
+            correctnessScore: true,
+            communicationScore: true,
+            structureScore: true,
+          },
+        },
+      },
+      orderBy: { startedAt: "desc" },
+    });
+
+    res.status(200).json({ interviews });
+  } catch (error) {
+    console.error("List interviews error:", error);
+    res.status(500).json({ error: "Something went wrong fetching interviews" });
+  }
+};
