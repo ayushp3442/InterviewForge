@@ -10,6 +10,11 @@ import resumeRoutes from "./routes/resume.routes.js";
 const app = express();
 app.set("trust proxy", 1);
 
+// ── Trust Proxy ──
+// Required when deployed behind a reverse proxy (e.g., Render, Heroku, Nginx)
+// so Express & express-rate-limit can correctly identify client IPs via X-Forwarded-For
+app.set("trust proxy", 1);
+
 // ── Security headers ──
 app.use(helmet());
 

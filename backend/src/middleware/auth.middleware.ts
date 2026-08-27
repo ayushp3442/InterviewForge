@@ -4,6 +4,7 @@ import { verifyAccessToken } from "../utils/jwt.js";
 export interface AuthRequest extends Request {
   userId?: number;
   role?: string;
+  file?: Express.Multer.File;
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
