@@ -63,14 +63,29 @@ export const addQuestionsToInterview = async (req: AuthRequest, res: Response) =
       return res.status(403).json({ error: "Not authorized to modify this interview" });
     }
 
+    const latestResume = await prisma.resume.findFirst({
+      where: { userId },
+      orderBy: { uploadedAt: "desc" },
+    });
+
+    let resumeSkills: string[] = [];
+    let resumeProjects: Array<{ title: string; techStack?: string[]; description?: string }> = [];
+
+    if (latestResume && latestResume.parsedJson) {
+      const parsed = latestResume.parsedJson as any;
+      resumeSkills = Array.isArray(parsed.skills) ? parsed.skills : [];
+      resumeProjects = Array.isArray(parsed.projects) ? parsed.projects : [];
+    }
+
     const aiResult = await generateQuestions({
       interviewType: interview.type,
       role: interview.role,
       domain: interview.domain,
       difficulty: interview.difficulty,
       questionCount: 5,
+      resumeSkills,
+      resumeProjects,
     });
-
     if (!aiResult || !Array.isArray(aiResult.questions)) {
       return res.status(502).json({ error: "AI service returned an unexpected response" });
     }
@@ -335,4 +350,4 @@ export const listInterviews = async (req: AuthRequest, res: Response) => {
     console.error("List interviews error:", error);
     res.status(500).json({ error: "Something went wrong fetching interviews" });
   }
-};
+};

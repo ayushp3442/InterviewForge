@@ -1,10 +1,9 @@
 import { Response } from "express";
-import * as pdfParseModule from "pdf-parse";
-const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+import { PDFParse } from "pdf-parse";
 import prisma from "../config/prisma.js";
 import { supabase } from "../config/supabase.js";
 import { AuthRequest } from "../middleware/auth.middleware.js";
-import { parseResume } from "../utils/resume.placeholder.js";
+import { parseResume } from "../utils/ai.service.js";
 
 export const uploadResume = async (req: AuthRequest, res: Response) => {
   try {
@@ -18,8 +17,10 @@ export const uploadResume = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: "No file uploaded. Field name must be 'resume'" });
     }
 
-    const fileExt = req.file.mimetype === "application/pdf" ? "pdf" : "docx";
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+   const originalName = req.file.originalname.toLowerCase();
+   const isPdf = req.file.mimetype === "application/pdf" || originalName.endsWith(".pdf");
+   const fileExt = isPdf ? "pdf" : "docx";
+   const fileName = `${userId}/${Date.now()}.${fileExt}`;  
 
     const { error: uploadError } = await supabase.storage
       .from("resumes")
@@ -36,16 +37,16 @@ export const uploadResume = async (req: AuthRequest, res: Response) => {
       .from("resumes")
       .getPublicUrl(fileName);
 
-    let rawText = "";
-    if (req.file.mimetype === "application/pdf") {
-      try {
-        const pdfData = await pdfParse(req.file.buffer);
-        rawText = pdfData.text;
-      } catch (err) {
-        console.error("PDF text extraction failed:", err);
-      }
-    }
-
+  let rawText = "";
+  if (isPdf) {
+    try {
+      const parser = new PDFParse({ data: req.file.buffer });
+      const pdfData = await parser.getText();
+      rawText = pdfData.text;
+    } catch (err) {
+      console.error("PDF text extraction failed:", err);
+  }
+}
     const parsed = await parseResume(rawText);
 
     const resume = await prisma.resume.create({
