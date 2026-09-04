@@ -135,11 +135,14 @@ function InterviewContent() {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-4">
           <p className="text-base font-medium leading-relaxed">{questions[currentQ]?.text}</p>
           {questions[currentQ]?.sourceSkill && (
-            <span className="mt-2 inline-block text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-              {questions[currentQ].sourceSkill}
-            </span>
+            <div className="mt-3 flex items-center gap-1.5">
+              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-0.5 rounded-full font-medium">
+                📌 From resume: {questions[currentQ].sourceSkill}
+              </span>
+            </div>
           )}
         </div>
+
 
         {/* Answer input */}
         <textarea
