@@ -66,3 +66,38 @@ export const uploadResume = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Something went wrong uploading the resume" });
   }
 };
+
+/**
+ * GET /api/resumes/latest
+ * Returns the most recently uploaded resume for the authenticated user,
+ * including parsedJson (skills, projects) for frontend badge + AI wiring.
+ */
+export const getLatestResume = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const resume = await prisma.resume.findFirst({
+      where: { userId },
+      orderBy: { uploadedAt: "desc" },
+      select: {
+        id: true,
+        fileUrl: true,
+        parsedJson: true,
+        uploadedAt: true,
+      },
+    });
+
+    if (!resume) {
+      return res.status(404).json({ error: "No resume found for this user" });
+    }
+
+    return res.status(200).json({ resume });
+  } catch (error) {
+    console.error("Get latest resume error:", error);
+    return res.status(500).json({ error: "Something went wrong fetching the resume" });
+  }
+};
