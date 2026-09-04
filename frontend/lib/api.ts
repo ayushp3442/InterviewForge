@@ -124,3 +124,32 @@ export async function logoutUser(refreshToken: string): Promise<any> {
   });
   return handleResponse<any>(res);
 }
+
+export async function uploadResume(file: File): Promise<any> {
+  const formData = new FormData();
+  formData.append("resume", file);
+
+  // Note: Do NOT set Content-Type header — browser sets it automatically with boundary
+  const headers: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("accessToken");
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_URL}/resumes`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+  return handleResponse<any>(res);
+}
+
+export async function getLatestResume(): Promise<any> {
+  const res = await fetch(`${API_URL}/resumes/latest`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+  // Return null instead of throwing if no resume exists (404)
+  if (res.status === 404) return { resume: null };
+  return handleResponse<any>(res);
+}
