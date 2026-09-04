@@ -1,0 +1,174 @@
+"use client";
+import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { getUser, getRefreshToken, logout } from "@/lib/auth";
+import { logoutUser } from "@/lib/api";
+
+const navItems = [
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+  },
+  {
+    href: "/interview-setup",
+    label: "New Interview",
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+      </svg>
+    ),
+    highlight: true,
+  },
+  {
+    href: "/history",
+    label: "History",
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/resume-upload",
+    label: "Resume",
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+];
+
+interface AppLayoutProps {
+  children: React.ReactNode;
+}
+
+export default function AppLayout({ children }: AppLayoutProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const user = getUser();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) await logoutUser(refreshToken);
+    } catch { /* clear client even if server call fails */ }
+    finally {
+      logout();
+      router.push("/login");
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] flex">
+      {/* ── Sidebar ── */}
+      <aside className="hidden md:flex w-56 flex-col fixed inset-y-0 left-0 z-30">
+        {/* Glass sidebar */}
+        <div className="flex flex-col h-full bg-white/[0.03] border-r border-white/[0.06] backdrop-blur-xl px-3 py-5">
+          {/* Logo */}
+          <div className="flex items-center gap-2 px-2 mb-8">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <span className="text-sm font-semibold text-white tracking-tight">InterviewForge</span>
+          </div>
+
+          {/* Nav items */}
+          <nav className="flex-1 space-y-0.5">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => router.push(item.href)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    item.highlight
+                      ? isActive
+                        ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/20"
+                        : "bg-gradient-to-r from-blue-600/20 to-violet-600/20 text-blue-300 hover:from-blue-600/30 hover:to-violet-600/30 border border-blue-500/20"
+                      : isActive
+                      ? "bg-white/10 text-white"
+                      : "text-white/50 hover:text-white/80 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  <span className={item.highlight && !isActive ? "text-blue-400" : ""}>{item.icon}</span>
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* User section */}
+          <div className="border-t border-white/[0.06] pt-4 mt-4">
+            <div className="flex items-center gap-3 px-2 mb-3">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-white/90 truncate">{user?.name ?? "User"}</p>
+                <p className="text-[10px] text-white/40 truncate">{user?.email ?? ""}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-all duration-200"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {loggingOut ? "Signing out..." : "Sign out"}
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── Mobile top bar ── */}
+      <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center justify-between px-4 bg-[#0a0a0f]/90 backdrop-blur-xl border-b border-white/[0.06]">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <span className="text-sm font-semibold text-white">InterviewForge</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {navItems.slice(0, 3).map((item) => (
+            <button
+              key={item.href}
+              onClick={() => router.push(item.href)}
+              className={`p-2 rounded-lg transition-colors ${
+                pathname === item.href ? "text-white bg-white/10" : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              {item.icon}
+            </button>
+          ))}
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-[11px] font-bold text-white">
+            {initials}
+          </div>
+        </div>
+      </header>
+
+      {/* ── Main content area ── */}
+      <main className="flex-1 md:ml-56 min-h-screen">
+        <div className="md:hidden h-14" /> {/* spacer for mobile top bar */}
+        {children}
+      </main>
+    </div>
+  );
+}
