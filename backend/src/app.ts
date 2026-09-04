@@ -6,8 +6,15 @@ import interviewRoutes from "./routes/interview.routes.js";
 import resumeRoutes from "./routes/resume.routes.js";
 import { generalLimiter } from "./middleware/rateLimiter.middleware.js";
 import { errorHandler } from "./middleware/error.middleware.js";
+import resumeRoutes from "./routes/resume.routes.js";
 
 const app = express();
+app.set("trust proxy", 1);
+
+// ── Trust Proxy ──
+// Required when deployed behind a reverse proxy (e.g., Render, Heroku, Nginx)
+// so Express & express-rate-limit can correctly identify client IPs via X-Forwarded-For
+app.set("trust proxy", 1);
 
 // ── Security headers ──
 app.use(helmet());
@@ -47,5 +54,6 @@ app.get("/", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/resumes", resumeRoutes);
+app.use(errorHandler);
 
 export default app;
