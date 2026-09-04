@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createInterview, addQuestionsToInterview } from "@/lib/api";
+import { createInterview, addQuestionsToInterview, getLatestResume } from "@/lib/api";
 import AuthGuard from "@/components/AuthGuard";
 
 const categories = ["Technical", "HR", "Mixed"];
@@ -17,8 +17,27 @@ function InterviewSetupContent() {
   const [mode, setMode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resumeLinked, setResumeLinked] = useState(false);
+  const [resumeSkillCount, setResumeSkillCount] = useState(0);
 
   const canStart = category && role && difficulty && mode && !loading;
+
+  // Check if user has a parsed resume on mount
+  useEffect(() => {
+    async function checkResume() {
+      try {
+        const res = await getLatestResume();
+        if (res?.resume?.parsedJson) {
+          const skills = res.resume.parsedJson.skills ?? [];
+          setResumeLinked(true);
+          setResumeSkillCount(Array.isArray(skills) ? skills.length : 0);
+        }
+      } catch {
+        // No resume — silent, not an error
+      }
+    }
+    checkResume();
+  }, []);
 
   async function handleStart() {
     setError("");
@@ -35,7 +54,7 @@ function InterviewSetupContent() {
 
       const interviewId = createRes.interview.id;
 
-      // 2. Generate and add questions via Gemini
+      // 2. Generate and add questions via Gemini (resume skills wired in backend)
       await addQuestionsToInterview(interviewId);
 
       // 3. Redirect to active interview session page
@@ -61,9 +80,29 @@ function InterviewSetupContent() {
         </div>
 
         <h1 className="text-lg font-medium mb-1 text-center">Set up your interview</h1>
-        <p className="text-sm text-gray-500 mb-6 text-center">
+        <p className="text-sm text-gray-500 mb-4 text-center">
           Choose your preferences to get started
         </p>
+
+        {/* Resume linked badge */}
+        {resumeLinked ? (
+          <div className="flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-medium px-3 py-1.5 rounded-full mb-6 w-fit mx-auto">
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            Resume linked — {resumeSkillCount > 0 ? `${resumeSkillCount} skills detected` : "questions will be personalized"}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mb-6">
+            <span>No resume uploaded.</span>
+            <button
+              onClick={() => router.push("/resume-upload")}
+              className="text-gray-600 underline hover:text-gray-900 transition-colors"
+            >
+              Upload now →
+            </button>
+          </div>
+        )}
 
         {/* Category */}
         <label className="text-sm text-gray-600 block mb-1">Category</label>
