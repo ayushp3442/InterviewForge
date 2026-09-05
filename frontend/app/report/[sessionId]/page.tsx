@@ -107,8 +107,19 @@ function ReportContent() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold text-white mb-1">Interview Report</h1>
-            <p className="text-xs text-white/30">{role} · {type} · {difficulty}</p>
+            <p className="text-xs text-white/30 flex items-center gap-1.5">
+              {role} · {type} ·{" "}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
+                difficulty === "Beginner"     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                difficulty === "Intermediate" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                difficulty === "Advanced"     ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                "bg-white/5 text-white/40 border-white/10"
+              }`}>
+                {difficulty}
+              </span>
+            </p>
           </div>
+
           <div className="flex gap-2">
             <button
               onClick={handleExportTxt}

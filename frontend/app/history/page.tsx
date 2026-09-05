@@ -36,6 +36,15 @@ function HistoryContent() {
     return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
   }
 
+  function difficultyBadge(d: string) {
+    const map: Record<string, string> = {
+      Beginner:     "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+      Intermediate: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+      Advanced:     "bg-red-500/10 text-red-400 border-red-500/20",
+    };
+    return map[d] ?? "bg-white/5 text-white/40 border-white/10";
+  }
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload?.length) {
       return (
@@ -138,7 +147,12 @@ function HistoryContent() {
                 >
                   <div>
                     <p className="text-sm font-medium text-white/80">{item.role}</p>
-                    <p className="text-xs text-white/30 mt-0.5">{item.type} · {item.difficulty} · {formatDate(item.startedAt)}</p>
+                    <p className="text-xs text-white/30 mt-0.5 flex items-center gap-1.5">
+                      {item.type} · {formatDate(item.startedAt)}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${difficultyBadge(item.difficulty)}`}>
+                        {item.difficulty}
+                      </span>
+                    </p>
                   </div>
                   <div className="text-right flex items-center gap-2.5">
                     {item.status === "completed" && item.report ? (
