@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUser, getRefreshToken, logout } from "@/lib/auth";
 import { logoutUser } from "@/lib/api";
+import { useToast } from "@/components/ToastProvider";
+
 
 const navItems = [
   {
@@ -63,6 +65,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const user = getUser();
   const [loggingOut, setLoggingOut] = useState(false);
+  const { info } = useToast();
+
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -76,7 +80,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
     } catch { /* clear client even if server call fails */ }
     finally {
       logout();
-      router.push("/login");
+      info("Signed out. See you next time! 👋");
+      setTimeout(() => router.push("/login"), 800);
     }
   }
 
