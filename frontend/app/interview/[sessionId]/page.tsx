@@ -133,9 +133,24 @@ function InterviewContent() {
         {/* Header — progress + timer */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
+            {/* Back button */}
+            <button
+              onClick={() => {
+                if (window.confirm("Leave this interview? Your current answer will not be saved.")) {
+                  router.push("/dashboard");
+                }
+              }}
+              className="p-1.5 rounded-lg text-white/25 hover:text-white/60 hover:bg-white/[0.05] transition-all"
+              title="Back to dashboard"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
             <span className="text-xs font-semibold text-white/30 uppercase tracking-wider">
               Question
             </span>
+
             <div className="flex gap-1.5">
               {questions.map((_, idx) => (
                 <div
