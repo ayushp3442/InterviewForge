@@ -146,7 +146,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
       </aside>
 
-      {/* ── Mobile top bar ── */}
+      {/* ── Mobile top bar — logo + user only ── */}
       <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center justify-between px-4 bg-[#0a0a0f]/90 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
@@ -156,28 +156,41 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
           <span className="text-sm font-semibold text-white">InterviewForge</span>
         </div>
-        <div className="flex items-center gap-3">
-          {navItems.slice(0, 3).map((item) => (
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-[11px] font-bold text-white">
+          {initials}
+        </div>
+      </header>
+
+      {/* ── Mobile bottom nav bar ── */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-16 flex items-center justify-around px-2 bg-[#0c0c14]/95 backdrop-blur-xl border-t border-white/[0.06]">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
+          return (
             <button
               key={item.href}
               onClick={() => router.push(item.href)}
-              className={`p-2 rounded-lg transition-colors ${
-                pathname === item.href ? "text-white bg-white/10" : "text-white/40 hover:text-white/70"
+              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
+                item.highlight
+                  ? isActive
+                    ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/20"
+                    : "bg-gradient-to-r from-blue-600/20 to-violet-600/20 text-blue-300"
+                  : isActive
+                  ? "text-white"
+                  : "text-white/35 hover:text-white/60"
               }`}
             >
-              {item.icon}
+              <span className="w-5 h-5 flex items-center justify-center">{item.icon}</span>
+              <span className="text-[9px] font-medium tracking-wide">{item.label}</span>
             </button>
-          ))}
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-[11px] font-bold text-white">
-            {initials}
-          </div>
-        </div>
-      </header>
+          );
+        })}
+      </nav>
 
       {/* ── Main content area ── */}
       <main className="flex-1 md:ml-56 min-h-screen">
         <div className="md:hidden h-14" /> {/* spacer for mobile top bar */}
         {children}
+        <div className="md:hidden h-16" /> {/* spacer for mobile bottom nav */}
       </main>
     </div>
   );
