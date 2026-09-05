@@ -30,6 +30,7 @@ An AI-powered mock interview platform that generates personalized interview ques
 | Week 3 | Interview CRUD, interview setup page | ✅ Complete |
 | Week 4 | Gemini AI integration — question gen, evaluation, report gen | ✅ Complete |
 | Week 5 | Resume upload (PDF/DOCX), AI parsing, resume-aware questions | ✅ Complete |
+| Week 6 | Dark theme redesign (all pages), token auto-refresh, Profile/Settings page (update name, change password), signup page redesign with password strength meter | ✅ Complete |
 
 ## Getting Started
 
@@ -67,6 +68,10 @@ npm run dev
 | POST | `/api/auth/register` | Register new user |
 | POST | `/api/auth/login` | Login |
 | POST | `/api/auth/logout` | Logout (blacklist refresh token) |
+| POST | `/api/auth/refresh` | Refresh access token |
+| GET | `/api/auth/me` | Get current user profile |
+| PATCH | `/api/auth/profile` | Update display name |
+| PATCH | `/api/auth/password` | Change password |
 | GET | `/api/interviews` | List user's interviews |
 | POST | `/api/interviews` | Create new interview session |
 | POST | `/api/interviews/:id/questions` | Generate AI questions (resume-aware) |

@@ -172,3 +172,29 @@ export async function getLatestResume(): Promise<any> {
   if (res.status === 404) return { resume: null };
   return handleResponse<any>(res);
 }
+
+export async function getMe(): Promise<any> {
+  const res = await authFetch(`${API_URL}/auth/me`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function updateProfile(name: string): Promise<any> {
+  const res = await authFetch(`${API_URL}/auth/profile`, {
+    method: "PATCH",
+    headers: getHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<any> {
+  const res = await authFetch(`${API_URL}/auth/password`, {
+    method: "PATCH",
+    headers: getHeaders(),
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return handleResponse<any>(res);
+}

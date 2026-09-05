@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, refresh, logout } from "../controllers/auth.controller.js";
+import { register, login, refresh, logout, updateProfile, changePassword, getMe } from "../controllers/auth.controller.js";
 import { authenticate, AuthRequest } from "../middleware/auth.middleware.js";
 import { authLimiter } from "../middleware/rateLimiter.middleware.js";
 import { validateRegister, validateLogin, validateRefresh } from "../middleware/validate.middleware.js";
@@ -13,12 +13,9 @@ router.post("/login", authLimiter, validateLogin, login);
 router.post("/refresh", validateRefresh, refresh);
 router.post("/logout", logout);
 
-// Protected test route
-router.get("/me", authenticate, (req: AuthRequest, res: Response) => {
-  res.status(200).json({
-    message: "You are authenticated",
-    userId: req.userId,
-  });
-});
+// Protected routes
+router.get("/me", authenticate, getMe);
+router.patch("/profile", authenticate, updateProfile);
+router.patch("/password", authenticate, changePassword);
 
 export default router;
