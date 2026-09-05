@@ -154,12 +154,17 @@ function InterviewContent() {
               {currentQ + 1}/{questions.length}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full px-3 py-1">
-            <svg className="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className={`flex items-center gap-1.5 border rounded-full px-3 py-1 transition-colors duration-500 ${
+            seconds >= 180
+              ? "bg-red-500/10 border-red-500/30 animate-pulse"
+              : "bg-white/[0.04] border-white/[0.08]"
+          }`}>
+            <svg className={`w-3 h-3 transition-colors ${seconds >= 180 ? "text-red-400" : "text-white/30"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-xs font-mono text-white/50 tabular-nums">{formatTime(seconds)}</span>
+            <span className={`text-xs font-mono tabular-nums transition-colors ${seconds >= 180 ? "text-red-400" : "text-white/50"}`}>{formatTime(seconds)}</span>
           </div>
+
         </div>
 
         {/* Question card */}
