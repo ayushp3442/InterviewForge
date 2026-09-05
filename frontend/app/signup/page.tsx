@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signupUser } from "@/lib/api";
 import { isLoggedIn } from "@/lib/auth";
+import { useToast } from "@/components/ToastProvider";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -10,13 +11,14 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const { error: showError, success: showSuccess } = useToast();
 
   useEffect(() => {
     if (isLoggedIn()) router.replace("/dashboard");
   }, [router]);
+
 
   const passwordStrength = (() => {
     if (password.length === 0) return 0;
@@ -34,19 +36,19 @@ export default function SignupPage() {
   const confirmMismatch = confirm.length > 0 && password !== confirm;
 
   async function handleSignup() {
-    setError("");
-    if (!name || !email || !password || !confirm) { setError("All fields are required."); return; }
-    if (name.trim().length < 2) { setError("Name must be at least 2 characters."); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
-    if (password !== confirm) { setError("Passwords do not match."); return; }
+    if (!name || !email || !password || !confirm) { showError("All fields are required."); return; }
+    if (name.trim().length < 2) { showError("Name must be at least 2 characters."); return; }
+    if (password.length < 6) { showError("Password must be at least 6 characters."); return; }
+    if (password !== confirm) { showError("Passwords do not match."); return; }
 
     setLoading(true);
     try {
       await signupUser(name.trim(), email, password);
+      showSuccess("Account created! Redirecting to login...");
       setSuccess(true);
       setTimeout(() => router.push("/login"), 1800);
     } catch (err: any) {
-      setError(err.message || "Registration failed. Please try again.");
+      showError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
