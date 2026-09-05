@@ -31,6 +31,7 @@ An AI-powered mock interview platform that generates personalized interview ques
 | Week 4 | Gemini AI integration — question gen, evaluation, report gen | ✅ Complete |
 | Week 5 | Resume upload (PDF/DOCX), AI parsing, resume-aware questions | ✅ Complete |
 | Week 6 | Dark theme redesign (all pages), token auto-refresh, Profile/Settings page (update name, change password), signup page redesign with password strength meter | ✅ Complete |
+| Week 7 | Global toast system, custom 404 page, Ctrl+Enter shortcut, 3-min timer warning, difficulty badges, share report button, mobile bottom nav bar, logout toast, dark scrollbar | ✅ Complete |
 
 ## Getting Started
 
