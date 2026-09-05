@@ -53,7 +53,8 @@ function InterviewContent() {
   }
 
   async function handleNext() {
-    if (!answer.trim()) return;
+    if (!answer.trim() || answer.length < minChars) return;
+
     setError("");
     setSubmitting(true);
     try {
@@ -76,6 +77,17 @@ function InterviewContent() {
   const progress = questions.length > 0 ? ((currentQ + 1) / questions.length) * 100 : 0;
   const isLast = currentQ === questions.length - 1;
   const charCount = answer.length;
+  const minChars = 20;
+  const hasEnoughChars = charCount >= minChars;
+
+  // Ctrl+Enter / Cmd+Enter to submit
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !submitting && hasEnoughChars) {
+      e.preventDefault();
+      handleNext();
+    }
+  }
+
 
   if (loading) {
     return (
@@ -183,6 +195,7 @@ function InterviewContent() {
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
+            onKeyDown={handleKeyDown}
             disabled={submitting}
             placeholder="Type your answer here... Be detailed and structured."
             rows={7}
@@ -190,12 +203,16 @@ function InterviewContent() {
           />
           <div className="px-5 py-2 border-t border-white/[0.04] flex justify-between items-center">
             <span className="text-[11px] text-white/20">
-              Tip: Structure your answer with examples
+              {!hasEnoughChars && charCount > 0
+                ? <span className="text-amber-400/60">Min {minChars} chars needed ({minChars - charCount} more)</span>
+                : "Tip: Structure your answer with examples · Ctrl+Enter to submit"
+              }
             </span>
-            <span className={`text-[11px] tabular-nums ${charCount > 50 ? "text-white/30" : "text-white/15"}`}>
-              {charCount} chars
+            <span className={`text-[11px] tabular-nums ${charCount >= minChars ? "text-emerald-400/60" : charCount > 0 ? "text-white/30" : "text-white/15"}`}>
+              {charCount}/{minChars < charCount ? charCount : minChars}
             </span>
           </div>
+
         </div>
 
         {/* Error */}
@@ -211,7 +228,8 @@ function InterviewContent() {
         {/* Submit button */}
         <button
           onClick={handleNext}
-          disabled={submitting || !answer.trim()}
+          disabled={submitting || !answer.trim() || !hasEnoughChars}
+
           className={`w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
             submitting || !answer.trim()
               ? "bg-white/5 text-white/20 cursor-not-allowed border border-white/[0.05]"
