@@ -32,6 +32,7 @@ An AI-powered mock interview platform that generates personalized interview ques
 | Week 5 | Resume upload (PDF/DOCX), AI parsing, resume-aware questions | ✅ Complete |
 | Week 6 | Dark theme redesign (all pages), token auto-refresh, Profile/Settings page (update name, change password), signup page redesign with password strength meter | ✅ Complete |
 | Week 7 | Global toast system, custom 404 page, Ctrl+Enter shortcut, 3-min timer warning, difficulty badges, share report button, mobile bottom nav bar, logout toast, dark scrollbar | ✅ Complete |
+| Week 8 | Custom role input (9 presets + free-text), question count selector (3/5/7/10), delete interviews from history, DELETE API with cascade, PDF report export, multi-line score chart with toggle legend, Voice mode disabled with tooltip, authFetch for resume endpoints | ✅ Complete |
 
 ## Getting Started
 
