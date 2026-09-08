@@ -155,7 +155,7 @@ export async function uploadResume(file: File): Promise<any> {
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}/resumes`, {
+  const res = await authFetch(`${API_URL}/resumes`, {
     method: "POST",
     headers,
     body: formData,
@@ -164,7 +164,7 @@ export async function uploadResume(file: File): Promise<any> {
 }
 
 export async function getLatestResume(): Promise<any> {
-  const res = await fetch(`${API_URL}/resumes/latest`, {
+  const res = await authFetch(`${API_URL}/resumes/latest`, {
     method: "GET",
     headers: getHeaders(),
   });
