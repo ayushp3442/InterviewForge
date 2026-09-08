@@ -6,7 +6,17 @@ import AuthGuard from "@/components/AuthGuard";
 import AppLayout from "@/components/AppLayout";
 
 const categories = ["Technical", "HR", "Mixed"];
-const roles = ["Backend Developer", "Frontend Developer", "Full Stack Developer", "Data Analyst"];
+const roles = [
+  "Backend Developer",
+  "Frontend Developer",
+  "Full Stack Developer",
+  "Data Analyst",
+  "DevOps Engineer",
+  "Machine Learning Engineer",
+  "QA Engineer",
+  "Product Manager",
+  "Other / Custom role...",
+];
 const difficulties = ["Beginner", "Intermediate", "Advanced"];
 const modes = ["Text"];
 const modesComingSoon = ["Voice"];
@@ -22,7 +32,9 @@ function InterviewSetupContent() {
   const [resumeLinked, setResumeLinked] = useState(false);
   const [resumeSkillCount, setResumeSkillCount] = useState(0);
 
-  const canStart = category && role && difficulty && mode && !loading;
+  const [customRole, setCustomRole] = useState("");
+  const effectiveRole = role === "Other / Custom role..." ? customRole.trim() : role;
+  const canStart = category && effectiveRole.length >= 2 && difficulty && mode && !loading;
 
   useEffect(() => {
     async function checkResume() {
@@ -41,7 +53,7 @@ function InterviewSetupContent() {
   async function handleStart() {
     setError(""); setLoading(true);
     try {
-      const createRes = await createInterview({ type: category, role, domain: role, difficulty, mode });
+      const createRes = await createInterview({ type: category, role: effectiveRole, domain: effectiveRole, difficulty, mode });
       const interviewId = createRes.interview.id;
       await addQuestionsToInterview(interviewId);
       router.push(`/interview/${interviewId}`);
@@ -138,7 +150,7 @@ function InterviewSetupContent() {
             <div className="relative">
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => { setRole(e.target.value); setCustomRole(""); }}
                 className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/70 focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer"
               >
                 <option value="" className="bg-[#1a1a2e]">Select a role...</option>
@@ -148,6 +160,17 @@ function InterviewSetupContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
+            {role === "Other / Custom role..." && (
+              <input
+                type="text"
+                value={customRole}
+                onChange={(e) => setCustomRole(e.target.value)}
+                placeholder="e.g. Cloud Architect, iOS Developer..."
+                maxLength={60}
+                className="mt-2 w-full bg-white/[0.05] border border-blue-500/30 rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-blue-500/60 transition-colors"
+                autoFocus
+              />
+            )}
           </div>
 
           {/* Difficulty */}
