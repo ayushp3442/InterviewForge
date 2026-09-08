@@ -8,7 +8,8 @@ import AppLayout from "@/components/AppLayout";
 const categories = ["Technical", "HR", "Mixed"];
 const roles = ["Backend Developer", "Frontend Developer", "Full Stack Developer", "Data Analyst"];
 const difficulties = ["Beginner", "Intermediate", "Advanced"];
-const modes = ["Text", "Voice (Beta)"];
+const modes = ["Text"];
+const modesComingSoon = ["Voice"];
 
 function InterviewSetupContent() {
   const router = useRouter();
@@ -49,7 +50,17 @@ function InterviewSetupContent() {
     } finally { setLoading(false); }
   }
 
-  function PillGroup({ options, selected, onSelect }: { options: string[]; selected: string; onSelect: (v: string) => void }) {
+  function PillGroup({
+    options,
+    selected,
+    onSelect,
+    disabledOptions = [],
+  }: {
+    options: string[];
+    selected: string;
+    onSelect: (v: string) => void;
+    disabledOptions?: string[];
+  }) {
     return (
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => (
@@ -64,6 +75,20 @@ function InterviewSetupContent() {
           >
             {opt}
           </button>
+        ))}
+        {disabledOptions.map((opt) => (
+          <div key={opt} className="relative group">
+            <button
+              disabled
+              className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/[0.02] border border-white/[0.05] text-white/20 cursor-not-allowed flex items-center gap-1.5"
+            >
+              {opt}
+              <span className="text-[9px] bg-white/10 text-white/30 px-1 py-0.5 rounded font-semibold tracking-wide">SOON</span>
+            </button>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#1a1a2e] border border-white/10 rounded-lg text-[11px] text-white/60 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-10">
+              🎙️ Voice mode coming soon
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -134,7 +159,7 @@ function InterviewSetupContent() {
           {/* Mode */}
           <div>
             <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Mode</label>
-            <PillGroup options={modes} selected={mode} onSelect={setMode} />
+            <PillGroup options={modes} selected={mode} onSelect={setMode} disabledOptions={modesComingSoon} />
           </div>
 
           {error && <p className="text-xs text-red-400 text-center">{error}</p>}
