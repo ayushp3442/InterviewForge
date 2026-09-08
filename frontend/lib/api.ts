@@ -199,3 +199,11 @@ export async function changePassword(currentPassword: string, newPassword: strin
   });
   return handleResponse<any>(res);
 }
+
+export async function deleteInterview(interviewId: number): Promise<any> {
+  const res = await authFetch(`${API_URL}/interviews/${interviewId}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  return handleResponse<any>(res);
+}
