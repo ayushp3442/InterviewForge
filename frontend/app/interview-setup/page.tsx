@@ -31,6 +31,7 @@ function InterviewSetupContent() {
   const [error, setError] = useState("");
   const [resumeLinked, setResumeLinked] = useState(false);
   const [resumeSkillCount, setResumeSkillCount] = useState(0);
+  const [questionCount, setQuestionCount] = useState(5);
 
   const [customRole, setCustomRole] = useState("");
   const effectiveRole = role === "Other / Custom role..." ? customRole.trim() : role;
@@ -55,7 +56,7 @@ function InterviewSetupContent() {
     try {
       const createRes = await createInterview({ type: category, role: effectiveRole, domain: effectiveRole, difficulty, mode });
       const interviewId = createRes.interview.id;
-      await addQuestionsToInterview(interviewId);
+      await addQuestionsToInterview(interviewId, questionCount);
       router.push(`/interview/${interviewId}`);
     } catch (err: any) {
       setError(err.message || "Failed to start interview. Please ensure the server is running.");
@@ -171,6 +172,26 @@ function InterviewSetupContent() {
                 autoFocus
               />
             )}
+          </div>
+
+          {/* Question Count */}
+          <div>
+            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Number of Questions</label>
+            <div className="flex gap-2">
+              {[3, 5, 7, 10].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setQuestionCount(n)}
+                  className={`flex-1 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                    questionCount === n
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/20"
+                      : "bg-white/[0.05] border border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  {n}Q
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Difficulty */}

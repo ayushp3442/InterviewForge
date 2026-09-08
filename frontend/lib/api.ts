@@ -102,10 +102,11 @@ export async function createInterview(data: {
   return handleResponse<any>(res);
 }
 
-export async function addQuestionsToInterview(interviewId: number): Promise<any> {
+export async function addQuestionsToInterview(interviewId: number, questionCount = 5): Promise<any> {
   const res = await authFetch(`${API_URL}/interviews/${interviewId}/questions`, {
     method: "POST",
     headers: getHeaders(),
+    body: JSON.stringify({ questionCount }),
   });
   return handleResponse<any>(res);
 }

@@ -77,12 +77,15 @@ export const addQuestionsToInterview = async (req: AuthRequest, res: Response) =
       resumeProjects = Array.isArray(parsed.projects) ? parsed.projects : [];
     }
 
+    const questionCount = parseInt(req.body?.questionCount) || 5;
+    const safeCount = Math.min(Math.max(questionCount, 3), 10); // clamp 3–10
+
     const aiResult = await generateQuestions({
       interviewType: interview.type,
       role: interview.role,
       domain: interview.domain,
       difficulty: interview.difficulty,
-      questionCount: 5,
+      questionCount: safeCount,
       resumeSkills,
       resumeProjects,
     });
