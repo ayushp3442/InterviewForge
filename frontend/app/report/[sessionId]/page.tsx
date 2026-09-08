@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getInterviewReport } from "@/lib/api";
 import AuthGuard from "@/components/AuthGuard";
@@ -37,6 +37,8 @@ function ReportContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedQ, setExpandedQ] = useState<number | null>(0);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isNaN(sessionId)) { setError("Invalid session ID"); setLoading(false); return; }
@@ -58,6 +60,48 @@ function ReportContent() {
       showSuccess("Report link copied to clipboard!");
     } catch {
       showSuccess("Copy this URL: " + window.location.href);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!reportRef.current || !data) return;
+    setExportingPdf(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const { default: jsPDF } = await import("jspdf");
+
+      const element = reportRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: "#0a0a0f",
+        useCORS: true,
+        logging: false,
+      });
+
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      let position = 0;
+      let remainingHeight = imgHeight;
+
+      while (remainingHeight > 0) {
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, position === 0 ? 0 : -position, imgWidth, imgHeight);
+        remainingHeight -= pageHeight;
+        if (remainingHeight > 0) {
+          position += pageHeight;
+          pdf.addPage();
+        }
+      }
+
+      pdf.save(`InterviewForge_Report_${sessionId}.pdf`);
+      showSuccess("PDF exported successfully!");
+    } catch (err) {
+      console.error(err);
+      showSuccess("PDF export failed — try the TXT export instead.");
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -143,22 +187,29 @@ function ReportContent() {
               Share
             </button>
             <button
+              onClick={handleExportPdf}
+              disabled={exportingPdf}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-500/30 bg-violet-500/[0.06] hover:bg-violet-500/[0.12] text-xs text-violet-400 hover:text-violet-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exportingPdf ? (
+                <><div className="w-3 h-3 border border-violet-400/40 border-t-violet-400 rounded-full animate-spin" />Exporting...</>
+              ) : (
+                <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>PDF</>
+              )}
+            </button>
+            <button
               onClick={handleExportTxt}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-xs text-white/40 hover:text-white/70 transition-all"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              Export
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-xs text-white/40 hover:text-white/70 transition-all"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-              Print
+              TXT
             </button>
           </div>
 
         </div>
+
+        {/* Scrollable report content captured for PDF */}
+        <div ref={reportRef}>
 
         {/* Overall score hero */}
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm p-6 mb-4 text-center relative overflow-hidden">
@@ -282,6 +333,8 @@ function ReportContent() {
             })}
           </div>
         </div>
+
+        </div> {/* end reportRef div */}
 
         {/* CTA */}
         <button
