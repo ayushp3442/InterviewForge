@@ -11,6 +11,11 @@ function HistoryContent() {
   const [interviews, setInterviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [visibleLines, setVisibleLines] = useState({ overall: true, correctness: true, communication: true, structure: true });
+
+  function toggleLine(key: keyof typeof visibleLines) {
+    setVisibleLines((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -45,6 +50,9 @@ function HistoryContent() {
   const chartData = completed.map((i) => ({
     date: new Date(i.startedAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
     score: (i.report?.overallScore ?? 0) * 10,
+    correctness: (i.report?.correctnessScore ?? 0) * 10,
+    communication: (i.report?.communicationScore ?? 0) * 10,
+    structure: (i.report?.structureScore ?? 0) * 10,
   }));
 
   function formatDate(d: string) {
@@ -89,7 +97,28 @@ function HistoryContent() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-semibold text-white/40 uppercase tracking-wider">Score Trend</h2>
             {chartData.length > 0 && (
-              <span className="text-xs text-white/25">{chartData.length} sessions</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-white/25 mr-1">{chartData.length} sessions</span>
+                {([
+                  { key: "overall",       label: "Overall",       color: "bg-blue-500" },
+                  { key: "correctness",   label: "Correct",       color: "bg-blue-400" },
+                  { key: "communication", label: "Comm",          color: "bg-violet-400" },
+                  { key: "structure",     label: "Structure",     color: "bg-emerald-400" },
+                ] as const).map(({ key, label, color }) => (
+                  <button
+                    key={key}
+                    onClick={() => toggleLine(key)}
+                    className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border transition-all ${
+                      visibleLines[key]
+                        ? "border-white/20 text-white/60 bg-white/[0.05]"
+                        : "border-white/[0.06] text-white/20 bg-transparent"
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${color} ${!visibleLines[key] && "opacity-30"}`} />
+                    {label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
@@ -104,30 +133,37 @@ function HistoryContent() {
               </svg>
               <p className="text-sm text-white/25">Complete your first interview to see trends</p>
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="date" fontSize={10} tick={{ fill: "rgba(255,255,255,0.25)" }} axisLine={false} tickLine={false} />
-                <YAxis fontSize={10} domain={[0, 100]} tick={{ fill: "rgba(255,255,255,0.25)" }} axisLine={false} tickLine={false} width={30} tickFormatter={(v) => `${v}%`} />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)", strokeWidth: 1 }} />
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  stroke="url(#scoreGradient)"
-                  strokeWidth={2.5}
-                  dot={{ r: 4, fill: "#6366f1", strokeWidth: 0 }}
-                  activeDot={{ r: 6, fill: "#818cf8", strokeWidth: 0 }}
-                />
-                <defs>
-                  <linearGradient id="scoreGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#8b5cf6" />
-                  </linearGradient>
-                </defs>
-              </LineChart>
-            </ResponsiveContainer>
-          )}
+          ) : <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="date" fontSize={10} tick={{ fill: "rgba(255,255,255,0.25)" }} axisLine={false} tickLine={false} />
+                  <YAxis fontSize={10} domain={[0, 100]} tick={{ fill: "rgba(255,255,255,0.25)" }} axisLine={false} tickLine={false} width={30} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)", strokeWidth: 1 }} />
+                  <defs>
+                    <linearGradient id="scoreGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#8b5cf6" />
+                    </linearGradient>
+                  </defs>
+                  {visibleLines.overall && (
+                    <Line type="monotone" dataKey="score" name="Overall" stroke="url(#scoreGradient)" strokeWidth={2.5}
+                      dot={{ r: 4, fill: "#6366f1", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#818cf8", strokeWidth: 0 }} />
+                  )}
+                  {visibleLines.correctness && (
+                    <Line type="monotone" dataKey="correctness" name="Correctness" stroke="#60a5fa" strokeWidth={1.5} strokeDasharray="4 2"
+                      dot={{ r: 3, fill: "#60a5fa", strokeWidth: 0 }} activeDot={{ r: 5, fill: "#93c5fd", strokeWidth: 0 }} />
+                  )}
+                  {visibleLines.communication && (
+                    <Line type="monotone" dataKey="communication" name="Communication" stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 2"
+                      dot={{ r: 3, fill: "#a78bfa", strokeWidth: 0 }} activeDot={{ r: 5, fill: "#c4b5fd", strokeWidth: 0 }} />
+                  )}
+                  {visibleLines.structure && (
+                    <Line type="monotone" dataKey="structure" name="Structure" stroke="#34d399" strokeWidth={1.5} strokeDasharray="4 2"
+                      dot={{ r: 3, fill: "#34d399", strokeWidth: 0 }} activeDot={{ r: 5, fill: "#6ee7b7", strokeWidth: 0 }} />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+          }
         </div>
 
         {/* Interview list */}
