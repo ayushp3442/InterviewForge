@@ -32,19 +32,33 @@ const callGemini = async (prompt: string): Promise<string> => {
 
   for (let attempt = 1; attempt <= maxNetworkAttempts; attempt++) {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-            },
-          }),
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let res: Response;
+      try {
+        res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: "application/json",
+              },
+            }),
+            signal: controller.signal,
+          }
+        );
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          throw new Error("Gemini API request timed out after 30 seconds");
         }
-      );
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (res.status === 503 || res.status === 429) {
         const errorData = await res.json().catch(() => ({}));
@@ -315,28 +329,28 @@ Provide response in JSON matching the exact schema:
 
     const projects: ParsedResumeProject[] = Array.isArray(parsed.projects)
       ? parsed.projects.map((p: any, i: number) => ({
-          title: typeof p.title === "string" && p.title.trim().length > 0 ? p.title.trim() : `Project ${i + 1}`,
-          techStack: Array.isArray(p.techStack)
-            ? p.techStack.filter((t: any) => typeof t === "string" && t.trim().length > 0).map((t: string) => t.trim())
-            : [],
-          description: typeof p.description === "string" ? p.description.trim() : "",
-        }))
+        title: typeof p.title === "string" && p.title.trim().length > 0 ? p.title.trim() : `Project ${i + 1}`,
+        techStack: Array.isArray(p.techStack)
+          ? p.techStack.filter((t: any) => typeof t === "string" && t.trim().length > 0).map((t: string) => t.trim())
+          : [],
+        description: typeof p.description === "string" ? p.description.trim() : "",
+      }))
       : [];
 
     const experience: ParsedResumeExperience[] = Array.isArray(parsed.experience)
       ? parsed.experience.map((e: any) => ({
-          role: typeof e.role === "string" ? e.role.trim() : "Position",
-          company: typeof e.company === "string" ? e.company.trim() : "Company",
-          duration: typeof e.duration === "string" && e.duration.trim().length > 0 ? e.duration.trim() : null,
-        }))
+        role: typeof e.role === "string" ? e.role.trim() : "Position",
+        company: typeof e.company === "string" ? e.company.trim() : "Company",
+        duration: typeof e.duration === "string" && e.duration.trim().length > 0 ? e.duration.trim() : null,
+      }))
       : [];
 
     const education: ParsedResumeEducation[] = Array.isArray(parsed.education)
       ? parsed.education.map((ed: any) => ({
-          degree: typeof ed.degree === "string" ? ed.degree.trim() : "Degree",
-          institution: typeof ed.institution === "string" ? ed.institution.trim() : "Institution",
-          year: typeof ed.year === "string" && ed.year.trim().length > 0 ? ed.year.trim() : null,
-        }))
+        degree: typeof ed.degree === "string" ? ed.degree.trim() : "Degree",
+        institution: typeof ed.institution === "string" ? ed.institution.trim() : "Institution",
+        year: typeof ed.year === "string" && ed.year.trim().length > 0 ? ed.year.trim() : null,
+      }))
       : [];
 
     return {
@@ -379,14 +393,13 @@ ${input.resumeSkills && input.resumeSkills.length > 0 ? `- Candidate Verified Sk
 ${formattedProjects ? `- Candidate Projects from Resume: ${formattedProjects}` : ""}
 
 Instructions:
-${
-  hasResume
-    ? `- PERSONALIZATION RULE: At least 2-3 questions MUST be directly tailored to the candidate's actual projects and skills from their resume (e.g. "I see you worked on [Project Title] with [Tech]. How did you handle [challenge/design]?" or "In your [Project Title] project, why did you decide to use [Tech] over alternatives?").
+${hasResume
+      ? `- PERSONALIZATION RULE: At least 2-3 questions MUST be directly tailored to the candidate's actual projects and skills from their resume (e.g. "I see you worked on [Project Title] with [Tech]. How did you handle [challenge/design]?" or "In your [Project Title] project, why did you decide to use [Tech] over alternatives?").
 - For each question that evaluates or references a specific resume skill or project tech, set "sourceSkill" to that exact skill name (e.g. "React", "PostgreSQL", "Docker", "Node.js").
 - For generic conceptual or behavioral questions not derived from a specific resume skill, set "sourceSkill" to null.`
-    : `- Generate high-quality, relevant questions tailored to the specified role, domain, and difficulty level.
+      : `- Generate high-quality, relevant questions tailored to the specified role, domain, and difficulty level.
 - Set "sourceSkill" to null for each question.`
-}
+    }
 - Questions must match the specified difficulty: Beginner (fundamentals and syntax), Intermediate (practical patterns, tradeoffs, architecture), Advanced (system design, edge cases, scaling, performance optimization).
 
 Provide response in JSON matching the exact schema:
