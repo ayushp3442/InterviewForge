@@ -82,8 +82,8 @@ function InterviewSetupContent() {
             onClick={() => onSelect(opt)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
               selected === opt
-                ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/20"
-                : "bg-white/[0.05] border border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
+                ? "bg-charcoal text-cream shadow-md"
+                : "bg-cream-dark border border-stone-faint/30 text-charcoal-muted hover:text-charcoal hover:bg-cream-dark/80"
             }`}
           >
             {opt}
@@ -93,12 +93,12 @@ function InterviewSetupContent() {
           <div key={opt} className="relative group">
             <button
               disabled
-              className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/[0.02] border border-white/[0.05] text-white/20 cursor-not-allowed flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-cream-dark/50 border border-stone-faint/20 text-stone-faint cursor-not-allowed flex items-center gap-1.5"
             >
               {opt}
-              <span className="text-[9px] bg-white/10 text-white/30 px-1 py-0.5 rounded font-semibold tracking-wide">SOON</span>
+              <span className="text-[9px] bg-stone-faint/20 text-stone-light px-1 py-0.5 rounded font-semibold tracking-wide">SOON</span>
             </button>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#1a1a2e] border border-white/10 rounded-lg text-[11px] text-white/60 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-10">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-charcoal border border-stone-faint/30 rounded-lg text-[11px] text-cream/60 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-10">
               🎙️ Voice mode coming soon
             </div>
           </div>
@@ -108,32 +108,28 @@ function InterviewSetupContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] px-4 py-8 lg:py-10 flex items-start justify-center">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/3 right-0 w-80 h-80 bg-violet-600/5 rounded-full blur-3xl" />
-      </div>
-
+    <div className="min-h-screen bg-cream px-4 py-8 lg:py-10 flex items-start justify-center">
       <div className="relative w-full max-w-md">
         <div className="mb-8">
-          <h1 className="text-xl font-bold text-white mb-1">Set up your interview</h1>
-          <p className="text-white/40 text-sm">Choose your preferences to get tailored AI questions</p>
+          <h1 className="text-xl font-serif text-charcoal mb-1">Set up your interview</h1>
+          <p className="text-stone text-sm">Choose your preferences to get tailored AI questions</p>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm p-6 space-y-6">
+        <div className="card-board p-6 space-y-6">
           {/* Resume status */}
           {resumeLinked ? (
-            <div className="flex items-center gap-2 bg-emerald-500/[0.08] border border-emerald-500/20 rounded-xl px-3.5 py-2.5">
-              <svg className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <div className="flex items-center gap-2 bg-forest/[0.06] border border-forest/20 rounded-xl px-3.5 py-2.5">
+              <svg className="w-3.5 h-3.5 text-forest flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              <p className="text-xs text-emerald-400 font-medium">
+              <p className="text-xs text-forest font-medium">
                 Resume linked — {resumeSkillCount > 0 ? `${resumeSkillCount} skills detected` : "questions will be personalized"}
               </p>
             </div>
           ) : (
-            <div className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-3.5 py-2.5">
-              <p className="text-xs text-white/30">No resume uploaded</p>
-              <button onClick={() => router.push("/resume-upload")} className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
+            <div className="flex items-center justify-between bg-cream-dark/50 border border-stone-faint/30 rounded-xl px-3.5 py-2.5">
+              <p className="text-xs text-stone-light">No resume uploaded</p>
+              <button onClick={() => router.push("/resume-upload")} className="text-xs text-gold hover:text-gold-muted font-medium transition-colors">
                 Upload now →
               </button>
             </div>
@@ -141,23 +137,23 @@ function InterviewSetupContent() {
 
           {/* Category */}
           <div>
-            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Interview Type</label>
+            <label className="label-board">Interview Type</label>
             <PillGroup options={categories} selected={category} onSelect={setCategory} />
           </div>
 
           {/* Role */}
           <div>
-            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Target Role</label>
+            <label className="label-board">Target Role</label>
             <div className="relative">
               <select
                 value={role}
                 onChange={(e) => { setRole(e.target.value); setCustomRole(""); }}
-                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/70 focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer"
+                className="input-board appearance-none cursor-pointer pr-10"
               >
-                <option value="" className="bg-[#1a1a2e]">Select a role...</option>
-                {roles.map((r) => <option key={r} value={r} className="bg-[#1a1a2e]">{r}</option>)}
+                <option value="">Select a role...</option>
+                {roles.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-              <svg className="w-4 h-4 text-white/25 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4 text-stone absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
@@ -168,7 +164,7 @@ function InterviewSetupContent() {
                 onChange={(e) => setCustomRole(e.target.value)}
                 placeholder="e.g. Cloud Architect, iOS Developer..."
                 maxLength={60}
-                className="mt-2 w-full bg-white/[0.05] border border-blue-500/30 rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-blue-500/60 transition-colors"
+                className="input-board mt-2 !border-gold/30 focus:!border-gold/60"
                 autoFocus
               />
             )}
@@ -176,7 +172,7 @@ function InterviewSetupContent() {
 
           {/* Question Count */}
           <div>
-            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Number of Questions</label>
+            <label className="label-board">Number of Questions</label>
             <div className="flex gap-2">
               {[3, 5, 7, 10].map((n) => (
                 <button
@@ -184,8 +180,8 @@ function InterviewSetupContent() {
                   onClick={() => setQuestionCount(n)}
                   className={`flex-1 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
                     questionCount === n
-                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/20"
-                      : "bg-white/[0.05] border border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
+                      ? "bg-charcoal text-cream shadow-md"
+                      : "bg-cream-dark border border-stone-faint/30 text-charcoal-muted hover:text-charcoal hover:bg-cream-dark/80"
                   }`}
                 >
                   {n}Q
@@ -196,25 +192,25 @@ function InterviewSetupContent() {
 
           {/* Difficulty */}
           <div>
-            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Difficulty</label>
+            <label className="label-board">Difficulty</label>
             <PillGroup options={difficulties} selected={difficulty} onSelect={setDifficulty} />
           </div>
 
           {/* Mode */}
           <div>
-            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Mode</label>
+            <label className="label-board">Mode</label>
             <PillGroup options={modes} selected={mode} onSelect={setMode} disabledOptions={modesComingSoon} />
           </div>
 
-          {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+          {error && <p className="text-xs text-warm-red text-center">{error}</p>}
 
           <button
             onClick={handleStart}
             disabled={!canStart}
-            className="w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 disabled:opacity-30 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none flex items-center justify-center gap-2"
+            className="btn-tactile w-full py-3.5"
           >
             {loading ? (
-              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Generating AI questions...</>
+              <><div className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" />Generating AI questions...</>
             ) : "Start Interview →"}
           </button>
         </div>

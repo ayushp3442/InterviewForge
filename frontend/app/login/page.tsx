@@ -32,51 +32,51 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
-      {/* Ambient orbs */}
+    <div className="min-h-screen bg-cream flex items-center justify-center p-4">
+      {/* Subtle warm glow */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gradient-to-b from-blue-600/10 via-violet-600/5 to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gold/[0.04] rounded-full blur-[120px]" />
       </div>
 
       <div className="relative w-full max-w-sm">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+          <div className="w-8 h-8 rounded-lg bg-charcoal flex items-center justify-center">
+            <span className="text-xs font-bold text-gold tracking-tight">IF</span>
           </div>
-          <span className="text-lg font-bold text-white tracking-tight">InterviewForge</span>
+          <span className="text-lg font-semibold text-charcoal tracking-tight">
+            Interview<span className="font-bold">Forge</span>
+          </span>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-8">
+        <div className="card-board-gold p-8">
           <div className="mb-6">
-            <h1 className="text-xl font-bold text-white mb-1">Welcome back</h1>
-            <p className="text-sm text-white/40">Sign in to continue your journey</p>
+            <h1 className="text-xl font-serif text-charcoal mb-1">Welcome back</h1>
+            <p className="text-sm text-stone">Sign in to continue your journey</p>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2">Email</label>
+              <label className="label-board">Email</label>
               <input
                 type="email"
                 placeholder="name@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-blue-500/50 transition-colors"
+                className="input-board"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2">Password</label>
+              <label className="label-board">Password</label>
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-blue-500/50 transition-colors"
+                className="input-board"
               />
             </div>
           </div>
@@ -84,21 +84,21 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="w-full mt-5 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 transition-all duration-300 shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none flex items-center justify-center gap-2"
+            className="btn-tactile w-full mt-5 py-3"
           >
             {loading ? (
-              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Signing in...</>
+              <><div className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" />Signing in...</>
             ) : "Sign in"}
           </button>
 
-          <p className="text-center text-xs text-white/30 mt-5">
+          <p className="text-center text-xs text-stone mt-5">
             Don&apos;t have an account?{" "}
-            <a href="/signup" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">Create one</a>
+            <a href="/signup" className="text-gold hover:text-gold-muted font-medium transition-colors">Create one</a>
           </p>
         </div>
 
-        <p className="text-center text-xs text-white/15 mt-6">
-          <a href="/" className="hover:text-white/30 transition-colors">← Back to InterviewForge</a>
+        <p className="text-center text-xs text-stone-faint mt-6">
+          <a href="/" className="hover:text-stone transition-colors">← Back to InterviewForge</a>
         </p>
       </div>
     </div>

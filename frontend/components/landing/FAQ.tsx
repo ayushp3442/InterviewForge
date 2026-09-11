@@ -35,7 +35,7 @@ export default function FAQ() {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="py-24 sm:py-32 bg-gray-50/40" aria-label="Frequently asked questions">
+    <section id="faq" className="py-24 sm:py-32 bg-white" aria-label="Frequently asked questions">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -44,13 +44,13 @@ export default function FAQ() {
           transition={{ duration: 0.7 }}
           className="text-center max-w-2xl mx-auto mb-16 sm:mb-20"
         >
-          <span className="inline-block px-3 py-1 rounded-full bg-primary-50 border border-primary-100 text-[11px] font-semibold text-primary-600 uppercase tracking-[0.1em] mb-5">
+          <span className="inline-block px-3 py-1 rounded-full bg-white border border-gold/20 text-[11px] font-semibold text-gold-muted uppercase tracking-[0.1em] mb-5">
             FAQ
           </span>
-          <h2 className="text-3xl sm:text-[2.75rem] font-bold text-primary-900 tracking-[-0.03em] leading-[1.15]">
+          <h2 className="text-3xl sm:text-[2.75rem] font-serif text-charcoal tracking-[-0.02em] leading-[1.15]">
             Frequently asked
             <br />
-            <span className="text-gradient">questions</span>
+            <span className="text-gold">questions</span>
           </h2>
         </motion.div>
 
@@ -65,18 +65,18 @@ export default function FAQ() {
             >
               <button
                 onClick={() => setOpen(open === i ? null : i)}
-                className="w-full glass-card p-5 text-left group transition-all duration-300 hover:shadow-[0_4px_20px_rgba(37,99,235,0.04)]"
+                className="w-full card-board p-5 text-left group transition-all duration-300 hover:shadow-card-hover"
                 aria-expanded={open === i}
               >
                 <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-[13px] font-semibold text-primary-900 group-hover:text-primary-700 transition-colors">
+                  <h3 className="text-[13px] font-semibold text-charcoal group-hover:text-charcoal-muted transition-colors font-serif">
                     {faq.q}
                   </h3>
-                  <div className="w-6 h-6 rounded-lg bg-gray-50 group-hover:bg-primary-50 flex items-center justify-center flex-shrink-0 transition-colors">
+                  <div className="w-6 h-6 rounded-lg bg-cream group-hover:bg-gold/10 flex items-center justify-center flex-shrink-0 transition-colors">
                     {open === i ? (
-                      <Minus className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary-500" />
+                      <Minus className="w-3.5 h-3.5 text-stone group-hover:text-gold" />
                     ) : (
-                      <Plus className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary-500" />
+                      <Plus className="w-3.5 h-3.5 text-stone group-hover:text-gold" />
                     )}
                   </div>
                 </div>
@@ -89,7 +89,7 @@ export default function FAQ() {
                       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                       className="overflow-hidden"
                     >
-                      <p className="text-[13px] text-gray-500 leading-relaxed mt-3 pt-3 border-t border-gray-100/60">
+                      <p className="text-[13px] text-stone leading-relaxed mt-3 pt-3 border-t border-stone-faint/20">
                         {faq.a}
                       </p>
                     </motion.div>

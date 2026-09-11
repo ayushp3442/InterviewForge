@@ -15,7 +15,7 @@ const Footer = dynamic(() => import("@/components/landing/Footer"));
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-cream">
       <Navbar />
       <Hero />
       <TrustedBy />

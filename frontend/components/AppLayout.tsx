@@ -86,19 +86,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex">
+    <div className="min-h-screen bg-cream flex">
       {/* ── Sidebar ── */}
       <aside className="hidden md:flex w-56 flex-col fixed inset-y-0 left-0 z-30">
-        {/* Glass sidebar */}
-        <div className="flex flex-col h-full bg-white/[0.03] border-r border-white/[0.06] backdrop-blur-xl px-3 py-5">
+        <div className="flex flex-col h-full bg-white border-r border-stone-faint/30 px-3 py-5">
           {/* Logo */}
-          <div className="flex items-center gap-2 px-2 mb-8">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+          <div className="flex items-center gap-2.5 px-2 mb-8">
+            <div className="w-8 h-8 rounded-lg bg-charcoal flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-gold tracking-tight">IF</span>
             </div>
-            <span className="text-sm font-semibold text-white tracking-tight">InterviewForge</span>
+            <span className="text-sm font-semibold text-charcoal tracking-tight">
+              Interview<span className="font-bold">Forge</span>
+            </span>
           </div>
 
           {/* Nav items */}
@@ -112,14 +111,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                     item.highlight
                       ? isActive
-                        ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/20"
-                        : "bg-gradient-to-r from-blue-600/20 to-violet-600/20 text-blue-300 hover:from-blue-600/30 hover:to-violet-600/30 border border-blue-500/20"
+                        ? "bg-charcoal text-cream shadow-sm"
+                        : "bg-gold/10 text-gold-muted hover:bg-gold/15 border border-gold/20"
                       : isActive
-                      ? "bg-white/10 text-white"
-                      : "text-white/50 hover:text-white/80 hover:bg-white/[0.05]"
+                      ? "bg-charcoal/[0.06] text-charcoal border-l-2 border-gold -ml-px"
+                      : "text-stone hover:text-charcoal hover:bg-charcoal/[0.03]"
                   }`}
                 >
-                  <span className={item.highlight && !isActive ? "text-blue-400" : ""}>{item.icon}</span>
+                  <span className={item.highlight && !isActive ? "text-gold" : ""}>{item.icon}</span>
                   {item.label}
                 </button>
               );
@@ -127,20 +126,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </nav>
 
           {/* User section */}
-          <div className="border-t border-white/[0.06] pt-4 mt-4">
+          <div className="border-t border-stone-faint/30 pt-4 mt-4">
             <div className="flex items-center gap-3 px-2 mb-3">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-charcoal flex items-center justify-center text-[11px] font-bold text-gold flex-shrink-0 ring-2 ring-gold/20">
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-white/90 truncate">{user?.name ?? "User"}</p>
-                <p className="text-[10px] text-white/40 truncate">{user?.email ?? ""}</p>
+                <p className="text-xs font-medium text-charcoal truncate">{user?.name ?? "User"}</p>
+                <p className="text-[10px] text-stone-light truncate">{user?.email ?? ""}</p>
               </div>
             </div>
             <button
               onClick={handleLogout}
               disabled={loggingOut}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-all duration-200"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-stone hover:text-warm-red hover:bg-warm-red/[0.05] transition-all duration-200"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -151,23 +150,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
       </aside>
 
-      {/* ── Mobile top bar — logo + user only ── */}
-      <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center justify-between px-4 bg-[#0a0a0f]/90 backdrop-blur-xl border-b border-white/[0.06]">
+      {/* ── Mobile top bar ── */}
+      <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center justify-between px-4 bg-cream/95 backdrop-blur-xl border-b border-stone-faint/30">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
-            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+          <div className="w-7 h-7 rounded-md bg-charcoal flex items-center justify-center">
+            <span className="text-[10px] font-bold text-gold">IF</span>
           </div>
-          <span className="text-sm font-semibold text-white">InterviewForge</span>
+          <span className="text-sm font-semibold text-charcoal">InterviewForge</span>
         </div>
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-[11px] font-bold text-white">
+        <div className="w-7 h-7 rounded-full bg-charcoal flex items-center justify-center text-[11px] font-bold text-gold ring-2 ring-gold/20">
           {initials}
         </div>
       </header>
 
       {/* ── Mobile bottom nav bar ── */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-16 flex items-center justify-around px-2 bg-[#0c0c14]/95 backdrop-blur-xl border-t border-white/[0.06]">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-16 flex items-center justify-around px-2 bg-white/95 backdrop-blur-xl border-t border-stone-faint/30">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
           return (
@@ -177,15 +174,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
               className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
                 item.highlight
                   ? isActive
-                    ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/20"
-                    : "bg-gradient-to-r from-blue-600/20 to-violet-600/20 text-blue-300"
+                    ? "bg-charcoal text-cream shadow-sm"
+                    : "bg-gold/10 text-gold-muted"
                   : isActive
-                  ? "text-white"
-                  : "text-white/35 hover:text-white/60"
+                  ? "text-charcoal"
+                  : "text-stone-light hover:text-stone"
               }`}
             >
               <span className="w-5 h-5 flex items-center justify-center">{item.icon}</span>
               <span className="text-[9px] font-medium tracking-wide">{item.label}</span>
+              {isActive && !item.highlight && (
+                <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-gold" />
+              )}
             </button>
           );
         })}

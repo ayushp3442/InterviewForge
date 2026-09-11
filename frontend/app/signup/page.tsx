@@ -32,7 +32,8 @@ export default function SignupPage() {
   })();
 
   const strengthLabel = ["", "Weak", "Fair", "Good", "Strong", "Very strong"][passwordStrength];
-  const strengthColor = ["", "bg-red-500", "bg-amber-500", "bg-yellow-400", "bg-emerald-500", "bg-emerald-400"][passwordStrength];
+  const strengthColor = ["", "bg-warm-red", "bg-amber", "bg-amber-light", "bg-forest", "bg-forest"][passwordStrength];
+  const strengthTextColor = ["", "text-warm-red", "text-amber", "text-amber-light", "text-forest", "text-forest"][passwordStrength];
   const confirmMismatch = confirm.length > 0 && password !== confirm;
 
   async function handleSignup() {
@@ -55,81 +56,80 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
-      {/* Ambient orbs */}
+    <div className="min-h-screen bg-cream flex items-center justify-center p-4">
+      {/* Subtle warm glow */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gradient-to-b from-violet-600/10 via-blue-600/5 to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gold/[0.04] rounded-full blur-[120px]" />
       </div>
 
       <div className="relative w-full max-w-sm">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+          <div className="w-8 h-8 rounded-lg bg-charcoal flex items-center justify-center">
+            <span className="text-xs font-bold text-gold tracking-tight">IF</span>
           </div>
-          <span className="text-lg font-bold text-white tracking-tight">InterviewForge</span>
+          <span className="text-lg font-semibold text-charcoal tracking-tight">
+            Interview<span className="font-bold">Forge</span>
+          </span>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-8">
+        <div className="card-board-gold p-8">
           {success ? (
             /* Success state */
             <div className="text-center py-4">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div className="w-14 h-14 rounded-full bg-forest/10 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-forest" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-base font-semibold text-white mb-1">Account created!</h2>
-              <p className="text-sm text-white/40">Redirecting you to login...</p>
+              <h2 className="text-base font-serif text-charcoal mb-1">Account created!</h2>
+              <p className="text-sm text-stone">Redirecting you to login...</p>
             </div>
           ) : (
             <>
               <div className="mb-6">
-                <h1 className="text-xl font-bold text-white mb-1">Create your account</h1>
-                <p className="text-sm text-white/40">Start practising for your dream job</p>
+                <h1 className="text-xl font-serif text-charcoal mb-1">Create your account</h1>
+                <p className="text-sm text-stone">Start practising for your dream job</p>
               </div>
 
               <div className="space-y-4">
                 {/* Full name */}
                 <div>
-                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2">Full name</label>
+                  <label className="label-board">Full name</label>
                   <input
                     type="text"
                     placeholder="Krishna Yadav"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSignup()}
-                    className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-blue-500/50 transition-colors"
+                    className="input-board"
                   />
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2">Email</label>
+                  <label className="label-board">Email</label>
                   <input
                     type="email"
                     placeholder="name@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSignup()}
-                    className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-blue-500/50 transition-colors"
+                    className="input-board"
                   />
                 </div>
 
                 {/* Password */}
                 <div>
-                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2">Password</label>
+                  <label className="label-board">Password</label>
                   <input
                     type="password"
                     placeholder="Min. 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSignup()}
-                    className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-blue-500/50 transition-colors"
+                    className="input-board"
                   />
                   {/* Strength meter */}
                   {password.length > 0 && (
@@ -138,11 +138,11 @@ export default function SignupPage() {
                         {[1, 2, 3, 4, 5].map((i) => (
                           <div
                             key={i}
-                            className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= passwordStrength ? strengthColor : "bg-white/10"}`}
+                            className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= passwordStrength ? strengthColor : "bg-stone-faint/20"}`}
                           />
                         ))}
                       </div>
-                      <p className={`text-[10px] font-medium ${["", "text-red-400", "text-amber-400", "text-yellow-400", "text-emerald-400", "text-emerald-400"][passwordStrength]}`}>
+                      <p className={`text-[10px] font-medium ${strengthTextColor}`}>
                         {strengthLabel}
                       </p>
                     </div>
@@ -151,26 +151,26 @@ export default function SignupPage() {
 
                 {/* Confirm password */}
                 <div>
-                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2">Confirm password</label>
+                  <label className="label-board">Confirm password</label>
                   <input
                     type="password"
                     placeholder="Re-enter password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSignup()}
-                    className={`w-full bg-white/[0.05] border rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none transition-colors ${
+                    className={`input-board ${
                       confirmMismatch
-                        ? "border-red-500/50 focus:border-red-500/70"
+                        ? "!border-warm-red/50 focus:!border-warm-red/70 focus:!ring-warm-red/10"
                         : confirm && !confirmMismatch
-                        ? "border-emerald-500/40 focus:border-emerald-500/60"
-                        : "border-white/[0.08] focus:border-blue-500/50"
+                        ? "!border-forest/40 focus:!border-forest/60 focus:!ring-forest/10"
+                        : ""
                     }`}
                   />
                   {confirmMismatch && (
-                    <p className="text-[11px] text-red-400 mt-1.5">Passwords don&apos;t match</p>
+                    <p className="text-[11px] text-warm-red mt-1.5">Passwords don&apos;t match</p>
                   )}
                   {confirm && !confirmMismatch && (
-                    <p className="text-[11px] text-emerald-400 mt-1.5 flex items-center gap-1">
+                    <p className="text-[11px] text-forest mt-1.5 flex items-center gap-1">
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
@@ -180,29 +180,27 @@ export default function SignupPage() {
                 </div>
               </div>
 
-
-
               {/* Submit */}
               <button
                 onClick={handleSignup}
                 disabled={loading || confirmMismatch}
-                className="w-full mt-5 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 transition-all duration-300 shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none flex items-center justify-center gap-2"
+                className="btn-tactile w-full mt-5 py-3"
               >
                 {loading ? (
-                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating account...</>
+                  <><div className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" />Creating account...</>
                 ) : "Create account"}
               </button>
 
-              <p className="text-center text-xs text-white/30 mt-5">
+              <p className="text-center text-xs text-stone mt-5">
                 Already have an account?{" "}
-                <a href="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">Sign in</a>
+                <a href="/login" className="text-gold hover:text-gold-muted font-medium transition-colors">Sign in</a>
               </p>
             </>
           )}
         </div>
 
-        <p className="text-center text-xs text-white/15 mt-6">
-          <a href="/" className="hover:text-white/30 transition-colors">← Back to InterviewForge</a>
+        <p className="text-center text-xs text-stone-faint mt-6">
+          <a href="/" className="hover:text-stone transition-colors">← Back to InterviewForge</a>
         </p>
       </div>
     </div>

@@ -84,10 +84,17 @@ const ICONS: Record<ToastType, JSX.Element> = {
 };
 
 const STYLES: Record<ToastType, string> = {
-  success: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
-  error:   "bg-red-500/10 border-red-500/30 text-red-300",
-  warning: "bg-amber-500/10 border-amber-500/30 text-amber-300",
-  info:    "bg-blue-500/10 border-blue-500/30 text-blue-300",
+  success: "bg-white border-forest/30 text-forest",
+  error:   "bg-white border-warm-red/30 text-warm-red",
+  warning: "bg-white border-gold/40 text-gold-muted",
+  info:    "bg-white border-charcoal/20 text-charcoal",
+};
+
+const LEFT_ACCENT: Record<ToastType, string> = {
+  success: "bg-forest",
+  error:   "bg-warm-red",
+  warning: "bg-gold",
+  info:    "bg-charcoal",
 };
 
 function ToastViewport({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: number) => void }) {
@@ -98,9 +105,10 @@ function ToastViewport({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: num
         <div
           key={t.id}
           role="alert"
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border backdrop-blur-xl pointer-events-auto max-w-sm w-full ${STYLES[t.type]}`}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-card border pointer-events-auto max-w-sm w-full relative overflow-hidden ${STYLES[t.type]}`}
           style={{ animation: "slideInRight 0.25s ease-out" }}
         >
+          <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${LEFT_ACCENT[t.type]}`} />
           {ICONS[t.type]}
           <p className="text-sm font-medium flex-1">{t.message}</p>
           <button
