@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { uploadResume as uploadResumeController, getLatestResume } from "../controllers/resume.controller.js";
+import { uploadResume as uploadResumeController, getLatestResume, updateParsedSkills } from "../controllers/resume.controller.js";
 import { uploadResume as uploadMiddleware } from "../middleware/upload.middleware.js";
 import { authenticate, authorize } from "../middleware/auth.middleware.js";
 
@@ -30,5 +30,8 @@ router.post(
 );
 
 router.get("/latest", authenticate, authorize("student"), getLatestResume);
+
+// PATCH /api/resumes/:id/parsed — student edits parsed skills after AI extraction
+router.patch("/:id/parsed", authenticate, authorize("student"), updateParsedSkills);
 
 export default router;

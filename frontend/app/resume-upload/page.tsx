@@ -3,7 +3,7 @@ import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import AppLayout from "@/components/AppLayout";
-import { uploadResume } from "@/lib/api";
+import { uploadResume, updateResumeSkills } from "@/lib/api";
 
 type UploadState = "idle" | "uploading" | "success" | "error";
 
@@ -16,6 +16,10 @@ function ResumeUploadContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [parsedSkills, setParsedSkills] = useState<string[]>([]);
+  const [resumeId, setResumeId] = useState<number | null>(null);
+  const [newSkill, setNewSkill] = useState("");
+  const [savingSkills, setSavingSkills] = useState(false);
+  const [skillsSaved, setSkillsSaved] = useState(false);
 
   const validateFile = (file: File): string | null => {
     const allowed = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"];
@@ -42,8 +46,10 @@ function ResumeUploadContent() {
     try {
       const res = await uploadResume(selectedFile);
       const skills = res?.resume?.parsedJson?.skills ?? [];
-      setParsedSkills(Array.isArray(skills) ? skills.slice(0, 10) : []);
+      setParsedSkills(Array.isArray(skills) ? skills : []);
+      setResumeId(res?.resume?.id ?? null);
       setUploadState("success");
+      setSkillsSaved(false);
     } catch (err: any) {
       setErrorMsg(err.message || "Upload failed. Please try again.");
       setUploadState("error");
@@ -52,7 +58,45 @@ function ResumeUploadContent() {
 
   const handleReset = () => {
     setSelectedFile(null); setUploadState("idle"); setErrorMsg(""); setParsedSkills([]);
+    setResumeId(null); setNewSkill(""); setSkillsSaved(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setParsedSkills((prev) => prev.filter((s) => s !== skillToRemove));
+    setSkillsSaved(false);
+  };
+
+  const handleAddSkill = () => {
+    const trimmed = newSkill.trim();
+    if (!trimmed) return;
+    if (parsedSkills.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
+      setNewSkill("");
+      return;
+    }
+    setParsedSkills((prev) => [...prev, trimmed]);
+    setNewSkill("");
+    setSkillsSaved(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddSkill();
+    }
+  };
+
+  const handleSaveSkills = async () => {
+    if (!resumeId) return;
+    setSavingSkills(true);
+    try {
+      await updateResumeSkills(resumeId, parsedSkills);
+      setSkillsSaved(true);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to save skill changes.");
+    } finally {
+      setSavingSkills(false);
+    }
   };
 
   return (
@@ -68,27 +112,83 @@ function ResumeUploadContent() {
         </div>
 
         {uploadState === "success" ? (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-8 text-center">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-8">
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-base font-semibold text-white mb-1">Resume parsed successfully!</h2>
+              <p className="text-sm text-white/40 mb-5">Review and edit the detected skills below before starting your interview.</p>
             </div>
-            <h2 className="text-base font-semibold text-white mb-1">Resume parsed successfully!</h2>
-            <p className="text-sm text-white/40 mb-5">Your next interview will use these skills to generate personalized questions.</p>
 
-            {parsedSkills.length > 0 && (
-              <div className="mb-6">
-                <p className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-3">Detected Skills</p>
-                <div className="flex flex-wrap gap-2 justify-center">
+            {/* Editable Skills Section */}
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-3">Detected Skills <span className="text-white/20 normal-case font-normal">— click ✕ to remove, or add new ones below</span></p>
+
+              {parsedSkills.length > 0 ? (
+                <div className="flex flex-wrap gap-2 mb-4">
                   {parsedSkills.map((skill) => (
-                    <span key={skill} className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-full font-medium">
+                    <span
+                      key={skill}
+                      className="group inline-flex items-center gap-1.5 text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 pl-2.5 pr-1.5 py-1 rounded-full font-medium transition-all hover:border-blue-500/40 hover:bg-blue-500/15"
+                    >
                       {skill}
+                      <button
+                        onClick={() => handleRemoveSkill(skill)}
+                        className="w-4 h-4 rounded-full flex items-center justify-center text-blue-400/50 hover:text-red-400 hover:bg-red-500/20 transition-all"
+                        title={`Remove ${skill}`}
+                      >
+                        ✕
+                      </button>
                     </span>
                   ))}
                 </div>
+              ) : (
+                <p className="text-xs text-white/25 mb-4 italic">No skills detected. Add skills manually below.</p>
+              )}
+
+              {/* Add Skill Input */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newSkill}
+                  onChange={(e) => setNewSkill(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type a skill and press Enter..."
+                  className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                />
+                <button
+                  onClick={handleAddSkill}
+                  disabled={!newSkill.trim()}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  + Add
+                </button>
               </div>
-            )}
+            </div>
+
+            {/* Save Changes Button */}
+            <button
+              onClick={handleSaveSkills}
+              disabled={savingSkills || skillsSaved}
+              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 mb-3 ${
+                skillsSaved
+                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 cursor-default"
+                  : "bg-violet-500/15 text-violet-400 border border-violet-500/25 hover:bg-violet-500/25 disabled:opacity-40 disabled:cursor-not-allowed"
+              }`}
+            >
+              {savingSkills ? (
+                <><div className="w-4 h-4 border-2 border-violet-400/30 border-t-violet-400 rounded-full animate-spin" />Saving...</>
+              ) : skillsSaved ? (
+                <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Skills saved!</>
+              ) : (
+                "Save skill changes"
+              )}
+            </button>
+
+            {errorMsg && <p className="text-xs text-red-400 mb-3 text-center">{errorMsg}</p>}
 
             <div className="flex gap-3">
               <button onClick={handleReset} className="flex-1 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-sm text-white/60 hover:text-white/80 transition-all">
@@ -156,7 +256,7 @@ function ResumeUploadContent() {
             <div className="mt-5 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-4">
               <p className="text-xs font-semibold text-violet-400 mb-2">What happens after upload</p>
               <ul className="space-y-1.5">
-                {["AI extracts your skills, tools & projects", "Future interviews will ask skill-specific questions", "Each question shows which resume skill inspired it"].map((item) => (
+                {["AI extracts your skills, tools & projects", "You can review & edit detected skills", "Future interviews will ask skill-specific questions", "Each question shows which resume skill inspired it"].map((item) => (
                   <li key={item} className="flex items-start gap-2 text-xs text-white/40">
                     <span className="text-violet-500/60 mt-0.5 flex-shrink-0">✦</span>{item}
                   </li>

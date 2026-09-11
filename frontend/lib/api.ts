@@ -207,3 +207,12 @@ export async function deleteInterview(interviewId: number): Promise<any> {
   });
   return handleResponse<any>(res);
 }
+
+export async function updateResumeSkills(resumeId: number, skills: string[]): Promise<any> {
+  const res = await authFetch(`${API_URL}/resumes/${resumeId}/parsed`, {
+    method: "PATCH",
+    headers: getHeaders(),
+    body: JSON.stringify({ skills }),
+  });
+  return handleResponse<any>(res);
+}
