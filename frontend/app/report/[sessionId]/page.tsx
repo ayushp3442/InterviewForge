@@ -64,63 +64,37 @@ function ReportContent() {
   };
 
   const handleExportPdf = async () => {
-    if (!reportRef.current || !data) return;
+    if (!data) return;
     setExportingPdf(true);
     try {
-      const { default: html2canvas } = await import("html2canvas");
-      const { default: jsPDF } = await import("jspdf");
-
-      const element = reportRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        backgroundColor: "#0a0a0f",
-        useCORS: true,
-        logging: false,
-      });
-
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-      let position = 0;
-      let remainingHeight = imgHeight;
-
-      while (remainingHeight > 0) {
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, position === 0 ? 0 : -position, imgWidth, imgHeight);
-        remainingHeight -= pageHeight;
-        if (remainingHeight > 0) {
-          position += pageHeight;
-          pdf.addPage();
-        }
-      }
-
-      pdf.save(`InterviewForge_Report_${sessionId}.pdf`);
-      showSuccess("PDF exported successfully!");
-    } catch (err) {
+      const { generateVectorReportPdf } = await import("@/lib/pdfExport");
+      generateVectorReportPdf(data, sessionId);
+      showSuccess("Executive PDF report exported successfully!");
+    } catch (err: any) {
       console.error(err);
-      showSuccess("PDF export failed — try the TXT export instead.");
+      showSuccess(err?.message || "PDF export failed — try the TXT export instead.");
     } finally {
       setExportingPdf(false);
     }
   };
 
-  const handleExportTxt = () => {
-
+  const handleExportTxt = async () => {
     if (!data) return;
-    const { report, role, type, difficulty, questions } = data;
-    const strengths = Array.isArray(report.strengths) ? report.strengths : [];
-    const weaknesses = Array.isArray(report.weaknesses) ? report.weaknesses : [];
-    let txt = `INTERVIEWFORGE — INTERVIEW REPORT\n===================================\nRole: ${role}\nCategory: ${type}\nDifficulty: ${difficulty}\nDate: ${new Date(data.completedAt || data.startedAt).toLocaleDateString()}\n\nOVERALL: ${report.overallScore * 10}%\nCorrectness: ${report.correctnessScore * 10}%\nCommunication: ${report.communicationScore * 10}%\nStructure: ${report.structureScore * 10}%\n\nSTRENGTHS\n${strengths.map((s: string) => `• ${s}`).join("\n")}\n\nWEAKNESSES\n${weaknesses.map((w: string) => `• ${w}`).join("\n")}\n\nROADMAP\n${report.roadmapText}\n\nQ&A BREAKDOWN\n`;
-    questions.forEach((q: any, i: number) => {
-      const r = q.response || {};
-      txt += `\nQ${i + 1}: ${q.text}\nAnswer: ${r.answerText || "N/A"}\nScores — Correctness: ${(r.correctnessScore ?? 0) * 10}%, Communication: ${(r.communicationScore ?? 0) * 10}%, Structure: ${(r.structureScore ?? 0) * 10}%\nFeedback: ${r.feedback || "N/A"}\n---`;
-    });
-    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `InterviewForge_Report_${sessionId}.txt`; a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const { generateFormattedTextReport } = await import("@/lib/textExport");
+      const txt = generateFormattedTextReport(data, sessionId);
+      const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `InterviewForge_Report_${sessionId}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSuccess("Formatted TXT report exported!");
+    } catch (err: any) {
+      console.error(err);
+      showSuccess("Failed to export TXT report.");
+    }
   };
 
   if (loading) {
