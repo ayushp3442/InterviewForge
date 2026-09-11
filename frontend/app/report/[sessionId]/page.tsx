@@ -1,113 +1,134 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getInterviewReport } from "@/lib/api";
 import AuthGuard from "@/components/AuthGuard";
+import AppLayout from "@/components/AppLayout";
+import { useToast } from "@/components/ToastProvider";
+
+
+function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => { const t = setTimeout(() => setWidth(value), 200); return () => clearTimeout(t); }, [value]);
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-xs text-white/50">{label}</span>
+        <span className="text-xs font-semibold text-white/80">{value}%</span>
+      </div>
+      <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-1000 ease-out ${color}`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 function ReportContent() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params.sessionId ? parseInt(params.sessionId as string) : NaN;
+  const { success: showSuccess } = useToast();
+
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expandedQ, setExpandedQ] = useState<number | null>(0);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isNaN(sessionId)) {
-      setError("Invalid session ID");
-      setLoading(false);
-      return;
-    }
-
+    if (isNaN(sessionId)) { setError("Invalid session ID"); setLoading(false); return; }
     async function fetchReport() {
       try {
         const res = await getInterviewReport(sessionId);
-        if (res.interview && res.interview.report) {
-          setData(res.interview);
-        } else {
-          setError("Report is not compiled yet or this session is in-progress.");
-        }
+        if (res.interview?.report) setData(res.interview);
+        else setError("Report not available yet or interview is still in progress.");
       } catch (err: any) {
-        console.error("Fetch report error:", err);
-        setError(err.message || "Failed to load report data.");
-      } finally {
-        setLoading(false);
-      }
+        setError(err.message || "Failed to load report.");
+      } finally { setLoading(false); }
     }
-
     fetchReport();
   }, [sessionId]);
 
-  const handleExportTxt = () => {
-    if (!data) return;
-    const { report, role, type, difficulty, questions } = data;
-
-    const strengths = Array.isArray(report.strengths) ? report.strengths : JSON.parse(report.strengths || "[]");
-    const weaknesses = Array.isArray(report.weaknesses) ? report.weaknesses : JSON.parse(report.weaknesses || "[]");
-
-    let textContent = `INTERVIEWFORGE - AI INTERVIEW REPORT
-=====================================
-Role: ${role}
-Category: ${type}
-Difficulty: ${difficulty}
-Date: ${new Date(data.completedAt || data.startedAt).toLocaleDateString()}
-
-OVERALL PERFORMANCE
--------------------
-Overall Score: ${report.overallScore * 10}%
-- Correctness Score: ${report.correctnessScore * 10}%
-- Communication Score: ${report.communicationScore * 10}%
-- Structure Score: ${report.structureScore * 10}%
-
-KEY STRENGTHS
--------------
-${strengths.map((s: string) => `• ${s}`).join("\n")}
-
-KEY WEAKNESSES / IMPROVEMENTS
------------------------------
-${weaknesses.map((w: string) => `• ${w}`).join("\n")}
-
-PERSONALIZED LEARNING ROADMAP
-------------------------------
-${report.roadmapText}
-
-QUESTION-BY-QUESTION BREAKDOWN
---------------------------------
-`;
-
-    questions.forEach((q: any, i: number) => {
-      const resp = q.response || {};
-      textContent += `
-Question ${i + 1}: ${q.text}
-Your Answer: ${resp.answerText || "No answer submitted."}
-Correctness Score: ${resp.correctnessScore ? resp.correctnessScore * 10 : 0}%
-Communication Score: ${resp.communicationScore ? resp.communicationScore * 10 : 0}%
-Structure Score: ${resp.structureScore ? resp.structureScore * 10 : 0}%
-Feedback: ${resp.feedback || "No feedback generated."}
---------------------------------
-`;
-    });
-
-    const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `InterviewForge_Report_${sessionId}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showSuccess("Report link copied to clipboard!");
+    } catch {
+      showSuccess("Copy this URL: " + window.location.href);
+    }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportPdf = async () => {
+    if (!reportRef.current || !data) return;
+    setExportingPdf(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const { default: jsPDF } = await import("jspdf");
+
+      const element = reportRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: "#0a0a0f",
+        useCORS: true,
+        logging: false,
+      });
+
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      let position = 0;
+      let remainingHeight = imgHeight;
+
+      while (remainingHeight > 0) {
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, position === 0 ? 0 : -position, imgWidth, imgHeight);
+        remainingHeight -= pageHeight;
+        if (remainingHeight > 0) {
+          position += pageHeight;
+          pdf.addPage();
+        }
+      }
+
+      pdf.save(`InterviewForge_Report_${sessionId}.pdf`);
+      showSuccess("PDF exported successfully!");
+    } catch (err) {
+      console.error(err);
+      showSuccess("PDF export failed — try the TXT export instead.");
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleExportTxt = () => {
+
+    if (!data) return;
+    const { report, role, type, difficulty, questions } = data;
+    const strengths = Array.isArray(report.strengths) ? report.strengths : [];
+    const weaknesses = Array.isArray(report.weaknesses) ? report.weaknesses : [];
+    let txt = `INTERVIEWFORGE — INTERVIEW REPORT\n===================================\nRole: ${role}\nCategory: ${type}\nDifficulty: ${difficulty}\nDate: ${new Date(data.completedAt || data.startedAt).toLocaleDateString()}\n\nOVERALL: ${report.overallScore * 10}%\nCorrectness: ${report.correctnessScore * 10}%\nCommunication: ${report.communicationScore * 10}%\nStructure: ${report.structureScore * 10}%\n\nSTRENGTHS\n${strengths.map((s: string) => `• ${s}`).join("\n")}\n\nWEAKNESSES\n${weaknesses.map((w: string) => `• ${w}`).join("\n")}\n\nROADMAP\n${report.roadmapText}\n\nQ&A BREAKDOWN\n`;
+    questions.forEach((q: any, i: number) => {
+      const r = q.response || {};
+      txt += `\nQ${i + 1}: ${q.text}\nAnswer: ${r.answerText || "N/A"}\nScores — Correctness: ${(r.correctnessScore ?? 0) * 10}%, Communication: ${(r.communicationScore ?? 0) * 10}%, Structure: ${(r.structureScore ?? 0) * 10}%\nFeedback: ${r.feedback || "N/A"}\n---`;
+    });
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `InterviewForge_Report_${sessionId}.txt`; a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin" />
-          <p className="text-sm text-gray-500">Loading interview report...</p>
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-white/40">Loading your report...</p>
         </div>
       </div>
     );
@@ -115,13 +136,10 @@ Feedback: ${resp.feedback || "No feedback generated."}
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 text-center max-w-sm">
-          <p className="text-sm text-red-600 mb-4">{error || "Failed to load report data."}</p>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="bg-gray-900 text-white rounded-lg px-4 py-2 text-sm font-medium"
-          >
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center max-w-sm">
+          <p className="text-sm text-red-400 mb-6">{error || "Failed to load report."}</p>
+          <button onClick={() => router.push("/dashboard")} className="bg-white/10 hover:bg-white/20 text-white rounded-lg px-5 py-2 text-sm font-medium transition-colors">
             Back to Dashboard
           </button>
         </div>
@@ -130,138 +148,201 @@ Feedback: ${resp.feedback || "No feedback generated."}
   }
 
   const { report, role, type, difficulty, questions } = data;
-  const strengths = Array.isArray(report.strengths) ? report.strengths : JSON.parse(report.strengths || "[]");
-  const weaknesses = Array.isArray(report.weaknesses) ? report.weaknesses : JSON.parse(report.weaknesses || "[]");
+  const strengths = Array.isArray(report.strengths) ? report.strengths : [];
+  const weaknesses = Array.isArray(report.weaknesses) ? report.weaknesses : [];
+  const overallPct = report.overallScore * 10;
+  const scoreColor = overallPct >= 70 ? "text-emerald-400" : overallPct >= 50 ? "text-amber-400" : "text-red-400";
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 print:bg-white print:p-0">
-      <div className="max-w-2xl mx-auto print:max-w-none print:w-full">
+    <div className="min-h-screen bg-[#0a0a0f] px-4 py-8 lg:py-10">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-20 right-0 w-96 h-96 bg-violet-600/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl" />
+      </div>
 
-        {/* Header section */}
-        <div className="flex justify-between items-center mb-6 print:block print:mb-4">
+      <div className="relative max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Interview Report</h1>
-            <p className="text-xs text-gray-500">
-              {role} · {type} · {difficulty}
+            <h1 className="text-xl font-bold text-white mb-1">Interview Report</h1>
+            <p className="text-xs text-white/30 flex items-center gap-1.5">
+              {role} · {type} ·{" "}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
+                difficulty === "Beginner"     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                difficulty === "Intermediate" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                difficulty === "Advanced"     ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                "bg-white/5 text-white/40 border-white/10"
+              }`}>
+                {difficulty}
+              </span>
             </p>
           </div>
-          <div className="flex gap-2 print:hidden">
+
+          <div className="flex gap-2">
             <button
-              onClick={() => router.push("/dashboard")}
-              className="px-3 py-1.5 border rounded-lg text-xs font-medium bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+              onClick={handleShare}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-xs text-white/40 hover:text-white/70 transition-all"
             >
-              Dashboard
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+              Share
             </button>
             <button
-              onClick={() => router.push("/history")}
-              className="px-3 py-1.5 border rounded-lg text-xs font-medium bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+              onClick={handleExportPdf}
+              disabled={exportingPdf}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-500/30 bg-violet-500/[0.06] hover:bg-violet-500/[0.12] text-xs text-violet-400 hover:text-violet-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              History
+              {exportingPdf ? (
+                <><div className="w-3 h-3 border border-violet-400/40 border-t-violet-400 rounded-full animate-spin" />Exporting...</>
+              ) : (
+                <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>PDF</>
+              )}
             </button>
             <button
               onClick={handleExportTxt}
-              className="px-3 py-1.5 border rounded-lg text-xs font-medium bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-xs text-white/40 hover:text-white/70 transition-all"
             >
-              Export TXT
-            </button>
-            <button
-              onClick={handlePrint}
-              className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors"
-            >
-              Print / PDF
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              TXT
             </button>
           </div>
+
         </div>
 
-        {/* Overall score */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 text-center mb-4 print:border print:shadow-none">
-          <p className="text-xs text-gray-500 mb-1">Overall Score</p>
-          <p className="text-4xl font-bold text-gray-900">{report.overallScore * 10}%</p>
+        {/* Scrollable report content captured for PDF */}
+        <div ref={reportRef}>
+
+        {/* Overall score hero */}
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm p-6 mb-4 text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-violet-600/5" />
+          <div className="h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent absolute top-0 inset-x-0" />
+          <p className="text-xs text-white/30 uppercase tracking-widest mb-2 font-medium">Overall Score</p>
+          <p className={`text-6xl font-black mb-1 ${scoreColor}`}>{overallPct}<span className="text-2xl font-normal text-white/30">%</span></p>
+          <p className="text-xs text-white/30">{overallPct >= 70 ? "Great performance! 🎉" : overallPct >= 50 ? "Good effort — keep improving" : "Keep practicing — you'll get there"}</p>
         </div>
 
-        {/* Sub-scores */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 text-center print:border print:shadow-none">
-            <p className="text-xs text-gray-500 mb-1">Correctness</p>
-            <p className="text-xl font-semibold text-gray-900">{report.correctnessScore * 10}%</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 text-center print:border print:shadow-none">
-            <p className="text-xs text-gray-500 mb-1">Communication</p>
-            <p className="text-xl font-semibold text-gray-900">{report.communicationScore * 10}%</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 text-center print:border print:shadow-none">
-            <p className="text-xs text-gray-500 mb-1">Structure</p>
-            <p className="text-xl font-semibold text-gray-900">{report.structureScore * 10}%</p>
-          </div>
+        {/* Sub-score bars */}
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm p-5 mb-4 space-y-4">
+          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wider">Score Breakdown</h2>
+          <ScoreBar label="Correctness" value={report.correctnessScore * 10} color="bg-blue-500" />
+          <ScoreBar label="Communication" value={report.communicationScore * 10} color="bg-violet-500" />
+          <ScoreBar label="Structure" value={report.structureScore * 10} color="bg-emerald-500" />
         </div>
 
         {/* Strengths & Weaknesses */}
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 print:border print:shadow-none">
-            <h2 className="text-sm font-semibold text-green-700 mb-2">Key Strengths</h2>
-            <ul className="list-disc pl-4 text-xs text-gray-600 space-y-1">
-              {strengths.map((str: string, idx: number) => (
-                <li key={idx}>{str}</li>
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <h2 className="text-xs font-semibold text-emerald-400">Strengths</h2>
+            </div>
+            <ul className="space-y-2">
+              {strengths.map((s: string, i: number) => (
+                <li key={i} className="text-xs text-white/60 flex items-start gap-1.5">
+                  <span className="text-emerald-500/60 mt-0.5 flex-shrink-0">•</span>{s}
+                </li>
               ))}
             </ul>
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 print:border print:shadow-none">
-            <h2 className="text-sm font-semibold text-red-700 mb-2">Key Weaknesses</h2>
-            <ul className="list-disc pl-4 text-xs text-gray-600 space-y-1">
-              {weaknesses.map((weak: string, idx: number) => (
-                <li key={idx}>{weak}</li>
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-lg bg-red-500/15 flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h2 className="text-xs font-semibold text-red-400">To Improve</h2>
+            </div>
+            <ul className="space-y-2">
+              {weaknesses.map((w: string, i: number) => (
+                <li key={i} className="text-xs text-white/60 flex items-start gap-1.5">
+                  <span className="text-red-500/60 mt-0.5 flex-shrink-0">•</span>{w}
+                </li>
               ))}
             </ul>
           </div>
         </div>
 
-        {/* Learning Roadmap */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 mb-4 print:border print:shadow-none">
-          <h2 className="text-sm font-semibold text-gray-900 mb-2">AI-Powered Learning Roadmap</h2>
-          <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">{report.roadmapText}</p>
+        {/* Roadmap */}
+        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] p-5 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg bg-violet-500/15 flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+            </div>
+            <h2 className="text-xs font-semibold text-violet-400">AI Learning Roadmap</h2>
+          </div>
+          <p className="text-xs text-white/60 leading-relaxed whitespace-pre-line">{report.roadmapText}</p>
         </div>
 
-        {/* Question-wise feedback */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 print:border print:shadow-none">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Question-wise Breakdown</h2>
-          <div className="space-y-4">
+        {/* Q&A breakdown — accordion */}
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm overflow-hidden mb-6">
+          <div className="px-5 py-4 border-b border-white/[0.06]">
+            <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wider">Question-by-Question</h2>
+          </div>
+          <div className="divide-y divide-white/[0.04]">
             {questions.map((item: any, i: number) => {
               const resp = item.response || {};
+              const isOpen = expandedQ === i;
+              const qScore = resp.correctnessScore != null
+                ? Math.round(((resp.correctnessScore + resp.communicationScore + resp.structureScore) / 3) * 10)
+                : null;
               return (
-                <div key={item.id} className="pb-4 border-b border-gray-100 last:border-none last:pb-0">
-                  <p className="text-sm font-medium text-gray-900 mb-1">
-                    Q{i + 1}: {item.text}
-                  </p>
-                  <p className="text-xs text-gray-500 mb-2 italic">
-                    Your answer: "{resp.answerText || "No response provided"}"
-                  </p>
-
-                  {/* Scores */}
-                  <div className="flex gap-4 text-[10px] text-gray-500 mb-2">
-                    <span>Correctness: <strong>{resp.correctnessScore ? resp.correctnessScore * 10 : 0}%</strong></span>
-                    <span>Communication: <strong>{resp.communicationScore ? resp.communicationScore * 10 : 0}%</strong></span>
-                    <span>Structure: <strong>{resp.structureScore ? resp.structureScore * 10 : 0}%</strong></span>
-                  </div>
-
-                  <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded-lg leading-relaxed">
-                    <strong>Feedback:</strong> {resp.feedback || "Evaluation pending."}
-                  </p>
+                <div key={item.id}>
+                  <button
+                    onClick={() => setExpandedQ(isOpen ? null : i)}
+                    className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-[10px] font-bold text-white/25 flex-shrink-0">Q{i + 1}</span>
+                      <p className="text-sm text-white/70 truncate">{item.text}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                      {qScore !== null && (
+                        <span className={`text-xs font-semibold ${qScore >= 70 ? "text-emerald-400" : qScore >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                          {qScore}%
+                        </span>
+                      )}
+                      <svg
+                        className={`w-4 h-4 text-white/20 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-5 space-y-3">
+                      <div className="bg-white/[0.02] rounded-xl p-3 border border-white/[0.04]">
+                        <p className="text-[10px] text-white/25 uppercase tracking-wider mb-1">Your Answer</p>
+                        <p className="text-xs text-white/55 italic leading-relaxed">"{resp.answerText || "No answer submitted"}"</p>
+                      </div>
+                      <div className="flex gap-3 text-[11px]">
+                        <span className="text-white/30">Correctness: <strong className="text-white/60">{(resp.correctnessScore ?? 0) * 10}%</strong></span>
+                        <span className="text-white/30">Communication: <strong className="text-white/60">{(resp.communicationScore ?? 0) * 10}%</strong></span>
+                        <span className="text-white/30">Structure: <strong className="text-white/60">{(resp.structureScore ?? 0) * 10}%</strong></span>
+                      </div>
+                      {resp.feedback && (
+                        <div className="bg-blue-500/[0.06] border border-blue-500/20 rounded-xl p-3">
+                          <p className="text-[10px] text-blue-400/70 uppercase tracking-wider mb-1">AI Feedback</p>
+                          <p className="text-xs text-white/60 leading-relaxed">{resp.feedback}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Start new interview CTA */}
-        <div className="mt-4 print:hidden">
-          <button
-            onClick={() => router.push("/interview-setup")}
-            className="w-full bg-gray-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-gray-800 transition-colors"
-          >
-            Start another interview
-          </button>
-        </div>
+        </div> {/* end reportRef div */}
 
+        {/* CTA */}
+        <button
+          onClick={() => router.push("/interview-setup")}
+          className="w-full py-3.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 transition-all duration-300 shadow-lg shadow-blue-500/20 hover:-translate-y-0.5"
+        >
+          Start another interview →
+        </button>
       </div>
     </div>
   );
@@ -270,7 +351,9 @@ Feedback: ${resp.feedback || "No feedback generated."}
 export default function ReportPage() {
   return (
     <AuthGuard>
-      <ReportContent />
+      <AppLayout>
+        <ReportContent />
+      </AppLayout>
     </AuthGuard>
   );
 }

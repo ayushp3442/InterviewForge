@@ -29,3 +29,6 @@ Thumbs.db
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Uploaded resume files (user data — never commit)
+backend/uploads/

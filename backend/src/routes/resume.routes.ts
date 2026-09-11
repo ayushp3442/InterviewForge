@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { uploadResume as uploadResumeController } from "../controllers/resume.controller.js";
+import { uploadResume as uploadResumeController, getLatestResume } from "../controllers/resume.controller.js";
 import { uploadResume as uploadMiddleware } from "../middleware/upload.middleware.js";
 import { authenticate, authorize } from "../middleware/auth.middleware.js";
 
@@ -28,5 +28,7 @@ router.post(
     },
     uploadResumeController
 );
+
+router.get("/latest", authenticate, authorize("student"), getLatestResume);
 
 export default router;

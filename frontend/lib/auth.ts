@@ -40,3 +40,39 @@ export function logout(): void {
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
 }
+
+/**
+ * Attempts to refresh the access token using the stored refresh token.
+ * Returns the new access token on success, or null if refresh fails.
+ * Clears all tokens and redirects to /login on failure.
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const refreshToken = localStorage.getItem("refreshToken");
+  if (!refreshToken) return null;
+
+  try {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) throw new Error("Refresh failed");
+
+    const data = await res.json();
+    if (data.accessToken) {
+      localStorage.setItem("accessToken", data.accessToken);
+      return data.accessToken;
+    }
+    throw new Error("No access token in refresh response");
+  } catch {
+    // Refresh failed — force full logout
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
+    return null;
+  }
+}

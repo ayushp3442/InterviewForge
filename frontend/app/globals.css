@@ -9,7 +9,7 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ========= Custom scrollbar ========= */
+/* ========= Custom scrollbar (dark theme) ========= */
 ::-webkit-scrollbar {
   width: 5px;
 }
@@ -17,11 +17,11 @@ html {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: rgba(255,255,255,0.10);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(255,255,255,0.20);
 }
 
 /* ========= Selection ========= */
@@ -164,3 +164,9 @@ html {
   filter: blur(80px);
   animation: blob-morph 8s ease-in-out infinite;
 }
+
+/* ========= Toast slide-in animation ========= */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100%) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0)    scale(1); }
+}

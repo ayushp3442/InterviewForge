@@ -77,12 +77,15 @@ export const addQuestionsToInterview = async (req: AuthRequest, res: Response) =
       resumeProjects = Array.isArray(parsed.projects) ? parsed.projects : [];
     }
 
+    const questionCount = parseInt(req.body?.questionCount) || 5;
+    const safeCount = Math.min(Math.max(questionCount, 3), 10); // clamp 3–10
+
     const aiResult = await generateQuestions({
       interviewType: interview.type,
       role: interview.role,
       domain: interview.domain,
       difficulty: interview.difficulty,
-      questionCount: 5,
+      questionCount: safeCount,
       resumeSkills,
       resumeProjects,
     });
@@ -352,5 +355,48 @@ export const listInterviews = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error("List interviews error:", error);
     res.status(500).json({ error: "Something went wrong fetching interviews" });
+  }
+};
+
+export const deleteInterview = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    const interviewId = parseInt(req.params.id as string);
+
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    if (isNaN(interviewId)) {
+      return res.status(400).json({ error: "Invalid interview ID" });
+    }
+
+    const interview = await prisma.interview.findUnique({
+      where: { id: interviewId },
+      include: { questions: { include: { response: true } } },
+    });
+
+    if (!interview) {
+      return res.status(404).json({ error: "Interview not found" });
+    }
+
+    if (interview.userId !== userId) {
+      return res.status(403).json({ error: "Not authorized to delete this interview" });
+    }
+
+    // Delete in FK order: responses → questions → report → interview
+    const questionIds = interview.questions.map((q) => q.id);
+
+    await prisma.$transaction([
+      prisma.response.deleteMany({ where: { questionId: { in: questionIds } } }),
+      prisma.question.deleteMany({ where: { interviewId } }),
+      prisma.report.deleteMany({ where: { interviewId } }),
+      prisma.interview.delete({ where: { id: interviewId } }),
+    ]);
+
+    res.status(200).json({ message: "Interview deleted successfully" });
+  } catch (error) {
+    console.error("Delete interview error:", error);
+    res.status(500).json({ error: "Something went wrong deleting the interview" });
   }
 };

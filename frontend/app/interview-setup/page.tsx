@@ -1,13 +1,25 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createInterview, addQuestionsToInterview } from "@/lib/api";
+import { createInterview, addQuestionsToInterview, getLatestResume } from "@/lib/api";
 import AuthGuard from "@/components/AuthGuard";
+import AppLayout from "@/components/AppLayout";
 
 const categories = ["Technical", "HR", "Mixed"];
-const roles = ["Backend Developer", "Frontend Developer", "Full Stack Developer", "Data Analyst"];
+const roles = [
+  "Backend Developer",
+  "Frontend Developer",
+  "Full Stack Developer",
+  "Data Analyst",
+  "DevOps Engineer",
+  "Machine Learning Engineer",
+  "QA Engineer",
+  "Product Manager",
+  "Other / Custom role...",
+];
 const difficulties = ["Beginner", "Intermediate", "Advanced"];
-const modes = ["Text", "Voice (Beta)"];
+const modes = ["Text"];
+const modesComingSoon = ["Voice"];
 
 function InterviewSetupContent() {
   const router = useRouter();
@@ -17,130 +29,195 @@ function InterviewSetupContent() {
   const [mode, setMode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resumeLinked, setResumeLinked] = useState(false);
+  const [resumeSkillCount, setResumeSkillCount] = useState(0);
+  const [questionCount, setQuestionCount] = useState(5);
 
-  const canStart = category && role && difficulty && mode && !loading;
+  const [customRole, setCustomRole] = useState("");
+  const effectiveRole = role === "Other / Custom role..." ? customRole.trim() : role;
+  const canStart = category && effectiveRole.length >= 2 && difficulty && mode && !loading;
+
+  useEffect(() => {
+    async function checkResume() {
+      try {
+        const res = await getLatestResume();
+        if (res?.resume?.parsedJson) {
+          const skills = res.resume.parsedJson.skills ?? [];
+          setResumeLinked(true);
+          setResumeSkillCount(Array.isArray(skills) ? skills.length : 0);
+        }
+      } catch { /* no resume — silent */ }
+    }
+    checkResume();
+  }, []);
 
   async function handleStart() {
-    setError("");
-    setLoading(true);
+    setError(""); setLoading(true);
     try {
-      // 1. Create interview session
-      const createRes = await createInterview({
-        type: category,
-        role,
-        domain: role, // Use role as domain scope
-        difficulty,
-        mode,
-      });
-
+      const createRes = await createInterview({ type: category, role: effectiveRole, domain: effectiveRole, difficulty, mode });
       const interviewId = createRes.interview.id;
-
-      // 2. Generate and add questions via Gemini
-      await addQuestionsToInterview(interviewId);
-
-      // 3. Redirect to active interview session page
+      await addQuestionsToInterview(interviewId, questionCount);
       router.push(`/interview/${interviewId}`);
     } catch (err: any) {
-      console.error("Start interview error:", err);
-      setError(err.message || "Failed to start interview. Please ensure database and server are running.");
-    } finally {
-      setLoading(false);
-    }
+      setError(err.message || "Failed to start interview. Please ensure the server is running.");
+    } finally { setLoading(false); }
+  }
+
+  function PillGroup({
+    options,
+    selected,
+    onSelect,
+    disabledOptions = [],
+  }: {
+    options: string[];
+    selected: string;
+    onSelect: (v: string) => void;
+    disabledOptions?: string[];
+  }) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onSelect(opt)}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+              selected === opt
+                ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/20"
+                : "bg-white/[0.05] border border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
+            }`}
+          >
+            {opt}
+          </button>
+        ))}
+        {disabledOptions.map((opt) => (
+          <div key={opt} className="relative group">
+            <button
+              disabled
+              className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/[0.02] border border-white/[0.05] text-white/20 cursor-not-allowed flex items-center gap-1.5"
+            >
+              {opt}
+              <span className="text-[9px] bg-white/10 text-white/30 px-1 py-0.5 rounded font-semibold tracking-wide">SOON</span>
+            </button>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#1a1a2e] border border-white/10 rounded-lg text-[11px] text-white/60 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-10">
+              🎙️ Voice mode coming soon
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white rounded-xl p-8 shadow-sm border border-gray-200">
-        <div className="flex items-center gap-2 mb-6">
+    <div className="min-h-screen bg-[#0a0a0f] px-4 py-8 lg:py-10 flex items-start justify-center">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/3 right-0 w-80 h-80 bg-violet-600/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative w-full max-w-md">
+        <div className="mb-8">
+          <h1 className="text-xl font-bold text-white mb-1">Set up your interview</h1>
+          <p className="text-white/40 text-sm">Choose your preferences to get tailored AI questions</p>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm p-6 space-y-6">
+          {/* Resume status */}
+          {resumeLinked ? (
+            <div className="flex items-center gap-2 bg-emerald-500/[0.08] border border-emerald-500/20 rounded-xl px-3.5 py-2.5">
+              <svg className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              <p className="text-xs text-emerald-400 font-medium">
+                Resume linked — {resumeSkillCount > 0 ? `${resumeSkillCount} skills detected` : "questions will be personalized"}
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-3.5 py-2.5">
+              <p className="text-xs text-white/30">No resume uploaded</p>
+              <button onClick={() => router.push("/resume-upload")} className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                Upload now →
+              </button>
+            </div>
+          )}
+
+          {/* Category */}
+          <div>
+            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Interview Type</label>
+            <PillGroup options={categories} selected={category} onSelect={setCategory} />
+          </div>
+
+          {/* Role */}
+          <div>
+            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Target Role</label>
+            <div className="relative">
+              <select
+                value={role}
+                onChange={(e) => { setRole(e.target.value); setCustomRole(""); }}
+                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/70 focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer"
+              >
+                <option value="" className="bg-[#1a1a2e]">Select a role...</option>
+                {roles.map((r) => <option key={r} value={r} className="bg-[#1a1a2e]">{r}</option>)}
+              </select>
+              <svg className="w-4 h-4 text-white/25 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            {role === "Other / Custom role..." && (
+              <input
+                type="text"
+                value={customRole}
+                onChange={(e) => setCustomRole(e.target.value)}
+                placeholder="e.g. Cloud Architect, iOS Developer..."
+                maxLength={60}
+                className="mt-2 w-full bg-white/[0.05] border border-blue-500/30 rounded-xl px-4 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-blue-500/60 transition-colors"
+                autoFocus
+              />
+            )}
+          </div>
+
+          {/* Question Count */}
+          <div>
+            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Number of Questions</label>
+            <div className="flex gap-2">
+              {[3, 5, 7, 10].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setQuestionCount(n)}
+                  className={`flex-1 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                    questionCount === n
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/20"
+                      : "bg-white/[0.05] border border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  {n}Q
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Difficulty */}
+          <div>
+            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Difficulty</label>
+            <PillGroup options={difficulties} selected={difficulty} onSelect={setDifficulty} />
+          </div>
+
+          {/* Mode */}
+          <div>
+            <label className="text-xs font-semibold text-white/40 uppercase tracking-wider block mb-2.5">Mode</label>
+            <PillGroup options={modes} selected={mode} onSelect={setMode} disabledOptions={modesComingSoon} />
+          </div>
+
+          {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+
           <button
-            onClick={() => router.push("/dashboard")}
-            className="text-gray-400 hover:text-gray-700 text-sm transition-colors"
+            onClick={handleStart}
+            disabled={!canStart}
+            className="w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 disabled:opacity-30 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none flex items-center justify-center gap-2"
           >
-            ← Back
+            {loading ? (
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Generating AI questions...</>
+            ) : "Start Interview →"}
           </button>
         </div>
-
-        <h1 className="text-lg font-medium mb-1 text-center">Set up your interview</h1>
-        <p className="text-sm text-gray-500 mb-6 text-center">
-          Choose your preferences to get started
-        </p>
-
-        {/* Category */}
-        <label className="text-sm text-gray-600 block mb-1">Category</label>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`text-sm py-2 rounded-lg border transition-colors ${
-                category === c
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        {/* Role */}
-        <label className="text-sm text-gray-600 block mb-1">Role</label>
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-        >
-          <option value="">Select a role</option>
-          {roles.map((r) => (
-            <option key={r} value={r}>{r}</option>
-          ))}
-        </select>
-
-        {/* Difficulty */}
-        <label className="text-sm text-gray-600 block mb-1">Difficulty</label>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {difficulties.map((d) => (
-            <button
-              key={d}
-              onClick={() => setDifficulty(d)}
-              className={`text-sm py-2 rounded-lg border transition-colors ${
-                difficulty === d
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
-              }`}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-
-        {/* Mode */}
-        <label className="text-sm text-gray-600 block mb-1">Mode</label>
-        <div className="grid grid-cols-2 gap-2 mb-6">
-          {modes.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`text-sm py-2 rounded-lg border transition-colors ${
-                mode === m
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-
-        {error && <p className="text-xs text-red-600 mb-3 text-center">{error}</p>}
-
-        <button
-          onClick={handleStart}
-          disabled={!canStart}
-          className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-40"
-        >
-          {loading ? "Generating AI questions..." : "Start Interview"}
-        </button>
       </div>
     </div>
   );
@@ -149,7 +226,9 @@ function InterviewSetupContent() {
 export default function InterviewSetupPage() {
   return (
     <AuthGuard>
-      <InterviewSetupContent />
+      <AppLayout>
+        <InterviewSetupContent />
+      </AppLayout>
     </AuthGuard>
   );
 }

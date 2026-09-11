@@ -13,23 +13,42 @@ type RegisterResponse = {
 };
 
 async function handleResponse<T>(res: Response): Promise<T> {
-  // Handle 401 — token expired or missing, redirect to login
+  // 401/403 — token may be expired; caller should retry after refresh
   if (res.status === 401 || res.status === 403) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
-    }
-    throw new Error("Session expired. Please log in again.");
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as any).error || "Session expired");
   }
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || "Something went wrong");
+    throw new Error((data as any).error || "Something went wrong");
   }
   return data as T;
 }
+
+/**
+ * Authenticated fetch — auto-retries once with a refreshed token on 401.
+ * Falls back to redirecting to /login if refresh also fails.
+ */
+async function authFetch(url: string, options: RequestInit): Promise<Response> {
+  let res = await fetch(url, options);
+
+  if (res.status === 401 || res.status === 403) {
+    const { refreshAccessToken } = await import("@/lib/auth");
+    const newToken = await refreshAccessToken();
+    if (!newToken) {
+      // refreshAccessToken already redirected to /login
+      throw new Error("Session expired. Please log in again.");
+    }
+    // Rebuild headers with fresh token
+    const newHeaders = new Headers(options.headers as HeadersInit);
+    newHeaders.set("Authorization", `Bearer ${newToken}`);
+    res = await fetch(url, { ...options, headers: newHeaders });
+  }
+
+  return res;
+}
+
 
 export async function loginUser(email: string, password: string): Promise<AuthResponse> {
   const res = await fetch(`${API_URL}/auth/login`, {
@@ -61,7 +80,7 @@ function getHeaders(): HeadersInit {
 }
 
 export async function listInterviews(): Promise<any> {
-  const res = await fetch(`${API_URL}/interviews`, {
+  const res = await authFetch(`${API_URL}/interviews`, {
     method: "GET",
     headers: getHeaders(),
   });
@@ -75,7 +94,7 @@ export async function createInterview(data: {
   difficulty: string;
   mode: string;
 }): Promise<any> {
-  const res = await fetch(`${API_URL}/interviews`, {
+  const res = await authFetch(`${API_URL}/interviews`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(data),
@@ -83,16 +102,17 @@ export async function createInterview(data: {
   return handleResponse<any>(res);
 }
 
-export async function addQuestionsToInterview(interviewId: number): Promise<any> {
-  const res = await fetch(`${API_URL}/interviews/${interviewId}/questions`, {
+export async function addQuestionsToInterview(interviewId: number, questionCount = 5): Promise<any> {
+  const res = await authFetch(`${API_URL}/interviews/${interviewId}/questions`, {
     method: "POST",
     headers: getHeaders(),
+    body: JSON.stringify({ questionCount }),
   });
   return handleResponse<any>(res);
 }
 
 export async function submitResponse(questionId: number, answerText: string): Promise<any> {
-  const res = await fetch(`${API_URL}/interviews/questions/${questionId}/response`, {
+  const res = await authFetch(`${API_URL}/interviews/questions/${questionId}/response`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ answerText }),
@@ -101,7 +121,7 @@ export async function submitResponse(questionId: number, answerText: string): Pr
 }
 
 export async function completeInterview(interviewId: number): Promise<any> {
-  const res = await fetch(`${API_URL}/interviews/${interviewId}/complete`, {
+  const res = await authFetch(`${API_URL}/interviews/${interviewId}/complete`, {
     method: "POST",
     headers: getHeaders(),
   });
@@ -109,7 +129,7 @@ export async function completeInterview(interviewId: number): Promise<any> {
 }
 
 export async function getInterviewReport(interviewId: number): Promise<any> {
-  const res = await fetch(`${API_URL}/interviews/${interviewId}/report`, {
+  const res = await authFetch(`${API_URL}/interviews/${interviewId}/report`, {
     method: "GET",
     headers: getHeaders(),
   });
@@ -117,10 +137,73 @@ export async function getInterviewReport(interviewId: number): Promise<any> {
 }
 
 export async function logoutUser(refreshToken: string): Promise<any> {
-  const res = await fetch(`${API_URL}/auth/logout`, {
+  const res = await authFetch(`${API_URL}/auth/logout`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ refreshToken }),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function uploadResume(file: File): Promise<any> {
+  const formData = new FormData();
+  formData.append("resume", file);
+
+  // Note: Do NOT set Content-Type header — browser sets it automatically with boundary
+  const headers: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("accessToken");
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await authFetch(`${API_URL}/resumes`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+  return handleResponse<any>(res);
+}
+
+export async function getLatestResume(): Promise<any> {
+  const res = await authFetch(`${API_URL}/resumes/latest`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+  // Return null instead of throwing if no resume exists (404)
+  if (res.status === 404) return { resume: null };
+  return handleResponse<any>(res);
+}
+
+export async function getMe(): Promise<any> {
+  const res = await authFetch(`${API_URL}/auth/me`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function updateProfile(name: string): Promise<any> {
+  const res = await authFetch(`${API_URL}/auth/profile`, {
+    method: "PATCH",
+    headers: getHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<any> {
+  const res = await authFetch(`${API_URL}/auth/password`, {
+    method: "PATCH",
+    headers: getHeaders(),
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function deleteInterview(interviewId: number): Promise<any> {
+  const res = await authFetch(`${API_URL}/interviews/${interviewId}`, {
+    method: "DELETE",
+    headers: getHeaders(),
   });
   return handleResponse<any>(res);
 }

@@ -3,12 +3,11 @@ import cors from "cors";
 import helmet from "helmet";
 import authRoutes from "./routes/auth.routes.js";
 import interviewRoutes from "./routes/interview.routes.js";
+import resumeRoutes from "./routes/resume.routes.js";
 import { generalLimiter } from "./middleware/rateLimiter.middleware.js";
 import { errorHandler } from "./middleware/error.middleware.js";
-import resumeRoutes from "./routes/resume.routes.js";
 
 const app = express();
-app.set("trust proxy", 1);
 
 // ── Trust Proxy ──
 // Required when deployed behind a reverse proxy (e.g., Render, Heroku, Nginx)
