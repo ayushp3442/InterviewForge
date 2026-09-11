@@ -23,16 +23,17 @@ An AI-powered mock interview platform that generates personalized interview ques
 
 ## Project Progress
 
-| Week | Feature | Status |
+| Phase | Focus | Status |
 |------|---------|--------|
-| Week 1 | Auth (register/login/logout), JWT middleware, rate limiting | ✅ Complete |
-| Week 2 | Frontend auth pages wired to real API | ✅ Complete |
-| Week 3 | Interview CRUD, interview setup page | ✅ Complete |
-| Week 4 | Gemini AI integration — question gen, evaluation, report gen | ✅ Complete |
-| Week 5 | Resume upload (PDF/DOCX), AI parsing, resume-aware questions | ✅ Complete |
-| Week 6 | Dark theme redesign (all pages), token auto-refresh, Profile/Settings page (update name, change password), signup page redesign with password strength meter | ✅ Complete |
-| Week 7 | Global toast system, custom 404 page, Ctrl+Enter shortcut, 3-min timer warning, difficulty badges, share report button, mobile bottom nav bar, logout toast, dark scrollbar | ✅ Complete |
-| Week 8 | Custom role input (9 presets + free-text), question count selector (3/5/7/10), delete interviews from history, DELETE API with cascade, PDF report export, multi-line score chart with toggle legend, Voice mode disabled with tooltip, authFetch for resume endpoints | ✅ Complete |
+| Week 1 — Foundations | DB schema/ERD design, GitHub/Render/Vercel/Supabase setup | ✅ Complete |
+| Week 2 — Auth & API Foundation | JWT auth (register/login/refresh/logout), role-based middleware, rate limiting, staging deploy | ✅ Complete |
+| Week 3 — Interview Flow Skeleton | Interview session CRUD, question/response endpoints, interview setup & live interview UI | ✅ Complete |
+| Week 4 — AI Core Working | Live Gemini integration for question generation, response evaluation, and report synthesis with JSON validation | ✅ Complete |
+| Week 5 — Resume-Aware Interviews | Resume upload to Supabase Storage, AI resume parsing, personalized questions based on skills/projects | ✅ Complete |
+| Week 6 — Reports & Analytics | Interview history and score-trend endpoints, dashboard and history UI | ✅ Complete |
+| Week 7 — QA Pass | Edge-case testing (empty resume, AI failure, abandoned sessions, malformed input), defect fixes, UI polish | ✅ Complete |
+| Week 8 — Deployment & Submission | Production hardening, environment/secrets audit, final documentation | 🔄 In Progress |
+
 
 ## Getting Started
 
@@ -80,6 +81,7 @@ npm run dev
 | POST | `/api/interviews/questions/:id/response` | Submit + evaluate answer |
 | POST | `/api/interviews/:id/complete` | Complete interview & generate report |
 | GET | `/api/interviews/:id/report` | Get interview report |
+| DELETE | `/api/interviews/:id` | Delete an interview (and its questions/responses/report) |
 | POST | `/api/resumes` | Upload resume (PDF/DOCX) — parses & saves skills |
 | GET | `/api/resumes/latest` | Get user's latest parsed resume |
 
