@@ -178,7 +178,7 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
       return res.status(409).json({ error: "This question has already been answered" });
     }
     console.error("Submit response error:", error);
-    res.status(500).json({ error: "Something went wrong submitting the response" });
+    res.status(500).json({ error: error?.message || "Something went wrong submitting the response" });
   }
 };
 

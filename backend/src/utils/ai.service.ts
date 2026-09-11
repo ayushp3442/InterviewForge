@@ -17,7 +17,29 @@
 // ── Config ──────────────────────────────────────────────────────────────
 
 const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = "gemini-3.5-flash";
+
+/**
+ * Candidate models ordered by quota capacity, limits, and stability.
+ * 1. gemini-3.5-flash-lite: 500 RPD, 15 RPM (highest capacity on free tier)
+ * 2. gemini-3.6-flash: 20 RPD, 5 RPM (high quality next-gen flash)
+ * 3. gemini-3.7-flash: 20 RPD, 5 RPM
+ * 4. gemini-3.8-flash: 20 RPD, 5 RPM
+ * 5. gemini-3.5-flash: 20 RPD, 5 RPM
+ */
+const CANDIDATE_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
+  "gemini-3.8-flash",
+  "gemini-3.5-flash",
+];
+
+let activeModelIndex = 0;
+
+export const getActiveModel = (): string => {
+  return CANDIDATE_MODELS[activeModelIndex] || "gemini-3.5-flash-lite";
+};
+
 const MAX_RETRIES = 1; // Retry once on validation failure, per API contract
 
 // ── Gemini HTTP caller ──────────────────────────────────────────────────
@@ -27,18 +49,22 @@ const callGemini = async (prompt: string): Promise<string> => {
     throw new Error("GEMINI_API_KEY is not configured in .env");
   }
 
-  const maxNetworkAttempts = 3;
   let lastError: Error | null = null;
+  const totalModels = CANDIDATE_MODELS.length;
 
-  for (let attempt = 1; attempt <= maxNetworkAttempts; attempt++) {
+  // Try each model starting from the currently active model
+  for (let offset = 0; offset < totalModels; offset++) {
+    const modelIdx = (activeModelIndex + offset) % totalModels;
+    const model = CANDIDATE_MODELS[modelIdx];
+
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
 
       let res: Response;
       try {
         res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -53,46 +79,53 @@ const callGemini = async (prompt: string): Promise<string> => {
         );
       } catch (err: any) {
         if (err.name === "AbortError") {
-          throw new Error("Gemini API request timed out after 30 seconds");
+          console.warn(`[Gemini API] Request to model ${model} timed out after 25s. Switching model...`);
+          lastError = new Error(`Gemini model ${model} timed out`);
+          continue;
         }
         throw err;
       } finally {
         clearTimeout(timeoutId);
       }
 
-      if (res.status === 503 || res.status === 429) {
+      // If Rate Limited (429), Service Overloaded (503), or Model Unavailable (404)
+      if (res.status === 429 || res.status === 503 || res.status === 404) {
         const errorData = await res.json().catch(() => ({}));
-        console.warn(`[Gemini API] HTTP ${res.status} encountered (attempt ${attempt}/${maxNetworkAttempts}). Retrying after delay...`);
-        if (attempt < maxNetworkAttempts) {
-          await new Promise((r) => setTimeout(r, attempt * 1500));
-          continue;
-        }
-        throw new Error(`Gemini API error: ${res.status} ${JSON.stringify(errorData)}`);
+        const errMsg = (errorData as any)?.error?.message || `HTTP ${res.status}`;
+        console.warn(
+          `[Gemini API] Model ${model} returned ${res.status} (${errMsg.slice(0, 100)}). Auto-switching to next candidate model...`
+        );
+        lastError = new Error(`Gemini model ${model} returned ${res.status}: ${errMsg}`);
+        continue; // Immediately try the next model!
       }
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(`Gemini API error: ${res.status} ${JSON.stringify(errorData)}`);
+        throw new Error(`Gemini API error (${model}): ${res.status} ${JSON.stringify(errorData)}`);
       }
 
       const data = (await res.json()) as any;
       const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawText) {
-        throw new Error("Gemini API returned an empty response");
+        console.warn(`[Gemini API] Model ${model} returned empty response. Switching model...`);
+        lastError = new Error(`Gemini model ${model} returned empty response`);
+        continue;
+      }
+
+      // Success! Update activeModelIndex so future calls start with this working model
+      if (activeModelIndex !== modelIdx) {
+        console.log(`[Gemini API] Successfully auto-switched active model to: ${model}`);
+        activeModelIndex = modelIdx;
       }
 
       return rawText;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      if (attempt < maxNetworkAttempts && (lastError.message.includes("503") || lastError.message.includes("429"))) {
-        await new Promise((r) => setTimeout(r, attempt * 1500));
-        continue;
-      }
-      throw lastError;
+      console.warn(`[Gemini API] Call to model ${model} failed: ${lastError.message}. Trying next fallback model...`);
     }
   }
 
-  throw lastError || new Error("Gemini API request failed");
+  throw lastError || new Error("All Gemini candidate models failed or exhausted quota");
 };
 
 // ── Validation Helpers ──────────────────────────────────────────────────
@@ -158,7 +191,8 @@ Do NOT include any text outside the JSON object.`;
 
     try {
       const rawResult = await callGemini(finalPrompt);
-      const parsed = JSON.parse(rawResult);
+      const cleaned = rawResult.replace(/^```json\s*|\s*```$/g, "").trim();
+      const parsed = JSON.parse(cleaned);
       return validator(parsed);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
