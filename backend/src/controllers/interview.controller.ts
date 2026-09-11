@@ -1,6 +1,6 @@
 import { Response } from "express";
-import prisma from "../config/prisma.js"; 
-import { AuthRequest } from "../middleware/auth.middleware.js"; 
+import prisma from "../config/prisma.js";
+import { AuthRequest } from "../middleware/auth.middleware.js";
 import { generateQuestions, evaluateResponse, generateReport } from "../utils/ai.service.js";
 
 
@@ -170,7 +170,10 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
       message: "Response submitted and evaluated",
       response,
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return res.status(409).json({ error: "This question has already been answered" });
+    }
     console.error("Submit response error:", error);
     res.status(500).json({ error: "Something went wrong submitting the response" });
   }
