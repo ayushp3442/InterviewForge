@@ -19,19 +19,16 @@
 const API_KEY = process.env.GEMINI_API_KEY;
 
 /**
- * Candidate models ordered by quota capacity, limits, and stability.
- * 1. gemini-3.5-flash-lite: 500 RPD, 15 RPM (highest capacity on free tier)
- * 2. gemini-3.6-flash: 20 RPD, 5 RPM (high quality next-gen flash)
- * 3. gemini-3.7-flash: 20 RPD, 5 RPM
- * 4. gemini-3.8-flash: 20 RPD, 5 RPM
- * 5. gemini-3.5-flash: 20 RPD, 5 RPM
+ * Candidate models tried in order, per mentor feedback: keep total
+ * response time under ~35-40 seconds even if models fail.
+ * 1. gemini-3.5-flash — primary, fastest and most stable
+ * 2. gemini-3.6-flash — fallback if 3.5 fails/times out
+ * 3. gemini-3.5-flash-lite — final fallback to guarantee a response
  */
 const CANDIDATE_MODELS = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.6-flash",
-  "gemini-3.7-flash",
-  "gemini-3.8-flash",
   "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash-lite",
 ];
 
 let activeModelIndex = 0;
@@ -59,8 +56,7 @@ const callGemini = async (prompt: string): Promise<string> => {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
-
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second timeout per model
       let res: Response;
       try {
         res = await fetch(
@@ -79,7 +75,7 @@ const callGemini = async (prompt: string): Promise<string> => {
         );
       } catch (err: any) {
         if (err.name === "AbortError") {
-          console.warn(`[Gemini API] Request to model ${model} timed out after 25s. Switching model...`);
+          console.warn(`[Gemini API] Request to model ${model} timed out after 12s. Switching model...`);
           lastError = new Error(`Gemini model ${model} timed out`);
           continue;
         }
