@@ -411,3 +411,82 @@ export const deleteInterview = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Something went wrong deleting the interview" });
   }
 };
+
+
+export const getInterviewSummary = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const completedInterviews = await prisma.interview.findMany({
+      where: { userId, status: "completed" },
+      include: {
+        report: {
+          select: { overallScore: true },
+        },
+      },
+      orderBy: { completedAt: "desc" },
+    });
+
+    const totalInterviews = completedInterviews.length;
+
+    if (totalInterviews === 0) {
+      return res.status(200).json({
+        totalInterviews: 0,
+        averageScore: null,
+        bestScore: null,
+        latestScore: null,
+        previousScore: null,
+        improvementPercentage: null,
+        interviewHistory: [],
+      });
+    }
+
+    const scores = completedInterviews
+      .map((i) => i.report?.overallScore)
+      .filter((s): s is number => typeof s === "number");
+
+    const averageScore =
+      scores.length > 0
+        ? Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10
+        : null;
+
+    const bestScore = scores.length > 0 ? Math.max(...scores) : null;
+
+    const latestScore = completedInterviews[0]?.report?.overallScore ?? null;
+    const previousScore = completedInterviews[1]?.report?.overallScore ?? null;
+
+    let improvementPercentage: number | null = null;
+    if (latestScore !== null && previousScore !== null && previousScore !== 0) {
+      improvementPercentage = Math.round(
+        ((latestScore - previousScore) / previousScore) * 100
+      );
+    }
+
+    const interviewHistory = completedInterviews.map((i) => ({
+      id: i.id,
+      role: i.role,
+      type: i.type,
+      domain: i.domain,
+      difficulty: i.difficulty,
+      overallScore: i.report?.overallScore ?? null,
+      completedAt: i.completedAt,
+    }));
+
+    res.status(200).json({
+      totalInterviews,
+      averageScore,
+      bestScore,
+      latestScore,
+      previousScore,
+      improvementPercentage,
+      interviewHistory,
+    });
+  } catch (error) {
+    console.error("Get interview summary error:", error);
+    res.status(500).json({ error: "Something went wrong fetching the summary" });
+  }
+};
