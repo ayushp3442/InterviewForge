@@ -143,34 +143,15 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: "Not authorized to answer this question" });
     }
 
-    const aiResult = await evaluateResponse({
-      questionText: question.text,
-      answerText,
-      interviewType: question.interview.type,
-    });
-
-    if (
-      !aiResult ||
-      typeof aiResult.correctnessScore !== "number" ||
-      typeof aiResult.communicationScore !== "number" ||
-      typeof aiResult.structureScore !== "number"
-    ) {
-      return res.status(502).json({ error: "AI service returned an unexpected response" });
-    }
-
     const response = await prisma.response.create({
       data: {
         questionId,
         answerText,
-        correctnessScore: aiResult.correctnessScore,
-        communicationScore: aiResult.communicationScore,
-        structureScore: aiResult.structureScore,
-        feedback: aiResult.feedback,
       },
     });
 
     res.status(201).json({
-      message: "Response submitted and evaluated",
+      message: "Response saved. It will be evaluated when the interview is completed.",
       response,
     });
   } catch (error: any) {
@@ -225,20 +206,50 @@ export const completeInterview = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const qaPairs = answeredQuestions.map((q: QuestionWithResponse) => ({
-      questionText: q.text,
-      answerText: q.response!.answerText,
-      correctnessScore: q.response!.correctnessScore,
-      communicationScore: q.response!.communicationScore,
-      structureScore: q.response!.structureScore,
-    }));
+    // Evaluate every answered question now, in one batch, before generating the report
+    const evaluatedResponses = await Promise.all(
+      answeredQuestions.map(async (q: QuestionWithResponse) => {
+        const aiResult = await evaluateResponse({
+          questionText: q.text,
+          answerText: q.response!.answerText,
+          interviewType: interview.type,
+        });
+
+        if (
+          !aiResult ||
+          typeof aiResult.correctnessScore !== "number" ||
+          typeof aiResult.communicationScore !== "number" ||
+          typeof aiResult.structureScore !== "number"
+        ) {
+          throw new Error(`AI service returned an unexpected response for question ${q.id}`);
+        }
+
+        const updatedResponse = await prisma.response.update({
+          where: { id: q.response!.id },
+          data: {
+            correctnessScore: aiResult.correctnessScore,
+            communicationScore: aiResult.communicationScore,
+            structureScore: aiResult.structureScore,
+            feedback: aiResult.feedback,
+          },
+        });
+
+        return {
+          questionText: q.text,
+          answerText: q.response!.answerText,
+          correctnessScore: updatedResponse.correctnessScore,
+          communicationScore: updatedResponse.communicationScore,
+          structureScore: updatedResponse.structureScore,
+        };
+      })
+    );
 
     const aiResult = await generateReport({
       interviewType: interview.type,
       role: interview.role,
       domain: interview.domain,
       difficulty: interview.difficulty,
-      qaPairs,
+      qaPairs: evaluatedResponses,
     });
 
     if (
