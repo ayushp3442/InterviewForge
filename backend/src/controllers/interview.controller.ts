@@ -1,7 +1,7 @@
 import { Response } from "express";
 import prisma from "../config/prisma.js";
 import { AuthRequest } from "../middleware/auth.middleware.js";
-import { generateQuestions, evaluateResponse, generateReport } from "../utils/ai.service.js";
+import { generateQuestions, evaluateResponse, generateReport, generateCodingProblems } from "../utils/ai.service.js";
 
 
 export const createInterview = async (req: AuthRequest, res: Response) => {
@@ -80,31 +80,136 @@ export const addQuestionsToInterview = async (req: AuthRequest, res: Response) =
     const questionCount = parseInt(req.body?.questionCount) || 5;
     const safeCount = Math.min(Math.max(questionCount, 3), 10); // clamp 3–10
 
-    const aiResult = await generateQuestions({
-      interviewType: interview.type,
-      role: interview.role,
-      domain: interview.domain,
-      difficulty: interview.difficulty,
-      questionCount: safeCount,
-      resumeSkills,
-      resumeProjects,
-    });
-    if (!aiResult || !Array.isArray(aiResult.questions)) {
-      return res.status(502).json({ error: "AI service returned an unexpected response" });
+    // ── Determine question distribution ──
+    // Technical: ~40% coding, Mixed: ~20% coding, HR: all text
+    let codingCount = 0;
+    let textCount = safeCount;
+
+    if (interview.type === "Technical") {
+      codingCount = Math.max(1, Math.round(safeCount * 0.4));
+      textCount = safeCount - codingCount;
+    } else if (interview.type === "Mixed") {
+      codingCount = Math.max(1, Math.round(safeCount * 0.2));
+      textCount = safeCount - codingCount;
     }
 
-    const createdQuestions = await Promise.all(
-      aiResult.questions.map((q, index) =>
-        prisma.question.create({
+    // ── Generate TEXT questions ──
+    let textQuestions: Array<{ text: string; sourceSkill?: string | null }> = [];
+    if (textCount > 0) {
+      const aiResult = await generateQuestions({
+        interviewType: interview.type,
+        role: interview.role,
+        domain: interview.domain,
+        difficulty: interview.difficulty,
+        questionCount: textCount,
+        resumeSkills,
+        resumeProjects,
+      });
+      if (!aiResult || !Array.isArray(aiResult.questions)) {
+        return res.status(502).json({ error: "AI service returned an unexpected response for text questions" });
+      }
+      textQuestions = aiResult.questions;
+    }
+
+    // ── Generate CODING problems (if Technical) ──
+    let codingProblems: any[] = [];
+    if (codingCount > 0) {
+      try {
+        const codingResult = await generateCodingProblems({
+          role: interview.role,
+          domain: interview.domain,
+          difficulty: interview.difficulty,
+          count: codingCount,
+          resumeSkills,
+          resumeProjects,
+        });
+        codingProblems = codingResult.problems;
+      } catch (codingError) {
+        // If coding generation fails, fall back to all-text
+        console.warn("[Interview] Coding problem generation failed, falling back to text-only:", codingError);
+        textCount = safeCount;
+        codingCount = 0;
+        if (textQuestions.length < textCount) {
+          const fallbackResult = await generateQuestions({
+            interviewType: interview.type,
+            role: interview.role,
+            domain: interview.domain,
+            difficulty: interview.difficulty,
+            questionCount: safeCount,
+            resumeSkills,
+            resumeProjects,
+          });
+          if (fallbackResult && Array.isArray(fallbackResult.questions)) {
+            textQuestions = fallbackResult.questions;
+          }
+        }
+      }
+    }
+
+    // ── Interleave and save questions ──
+    // Pattern: TEXT, CODING, TEXT, TEXT, CODING (roughly alternating)
+    const allQuestions: Array<{ type: "text" | "coding"; data: any }> = [];
+    let tIdx = 0;
+    let cIdx = 0;
+
+    for (let i = 0; i < safeCount; i++) {
+      // Place coding questions at roughly even intervals
+      const codingInterval = codingCount > 0 ? Math.floor(safeCount / codingCount) : Infinity;
+      const shouldBeCoding = cIdx < codingProblems.length && (i % codingInterval === 1 || (tIdx >= textQuestions.length && cIdx < codingProblems.length));
+
+      if (shouldBeCoding) {
+        allQuestions.push({ type: "coding", data: codingProblems[cIdx] });
+        cIdx++;
+      } else if (tIdx < textQuestions.length) {
+        allQuestions.push({ type: "text", data: textQuestions[tIdx] });
+        tIdx++;
+      } else if (cIdx < codingProblems.length) {
+        allQuestions.push({ type: "coding", data: codingProblems[cIdx] });
+        cIdx++;
+      }
+    }
+
+    // Save to DB
+    const createdQuestions = [];
+    for (let i = 0; i < allQuestions.length; i++) {
+      const q = allQuestions[i];
+
+      if (q.type === "text") {
+        const created = await prisma.question.create({
           data: {
             interviewId,
-            text: q.text,
-            orderIndex: index,
-            sourceSkill: q.sourceSkill,
+            text: q.data.text,
+            orderIndex: i,
+            sourceSkill: q.data.sourceSkill || null,
+            questionType: "TEXT",
           },
-        })
-      )
-    );
+        });
+        createdQuestions.push(created);
+      } else {
+        // Create Question + CodingProblem in transaction
+        const created = await prisma.question.create({
+          data: {
+            interviewId,
+            text: `[Coding Challenge] ${q.data.title}`,
+            orderIndex: i,
+            sourceSkill: null,
+            questionType: "CODING",
+            codingProblem: {
+              create: {
+                title: q.data.title,
+                difficulty: q.data.difficulty,
+                description: q.data.description,
+                constraints: q.data.constraints || null,
+                starterCode: q.data.starterCode,
+                testCases: q.data.testCases,
+              },
+            },
+          },
+          include: { codingProblem: true },
+        });
+        createdQuestions.push(created);
+      }
+    }
 
     res.status(201).json({
       message: "Questions generated and saved",
@@ -176,7 +281,14 @@ export const completeInterview = async (req: AuthRequest, res: Response) => {
       where: { id: interviewId },
       include: {
         questions: {
-          include: { response: true },
+          include: {
+            response: true,
+            codingProblem: true,
+            codeSubmissions: {
+              orderBy: { submittedAt: "desc" },
+              take: 1,
+            },
+          },
           orderBy: { orderIndex: "asc" },
         },
       },
@@ -194,10 +306,33 @@ export const completeInterview = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: "Interview is already completed" });
     }
 
-    type QuestionWithResponse = (typeof interview.questions)[number];
+    // ── Auto-sync any coding questions that had submissions but no Response record ──
+    for (const q of interview.questions) {
+      if (!q.response && q.codeSubmissions.length > 0) {
+        const sub = q.codeSubmissions[0];
+        const correctnessScore = sub.totalTestCases > 0 ? Math.round((sub.passedTestCases / sub.totalTestCases) * 10) : 0;
+        const communicationScore = sub.codeQualityScore ?? 7;
+        const structureScore = sub.codeQualityScore ?? 7;
+        const feedback = sub.feedback || `Passed ${sub.passedTestCases}/${sub.totalTestCases} test cases.`;
+
+        const newResp = await prisma.response.create({
+          data: {
+            questionId: q.id,
+            answerText: `// [${sub.language.toUpperCase()} Solution]\n${sub.code}`,
+            correctnessScore,
+            communicationScore,
+            structureScore,
+            feedback,
+          },
+        });
+        (q as any).response = newResp;
+      }
+    }
+
+    type QuestionWithDetails = (typeof interview.questions)[number];
 
     const answeredQuestions = interview.questions.filter(
-      (q: QuestionWithResponse) => q.response
+      (q: QuestionWithDetails) => q.response
     );
 
     if (answeredQuestions.length === 0) {
@@ -208,7 +343,19 @@ export const completeInterview = async (req: AuthRequest, res: Response) => {
 
     // Evaluate every answered question now, in one batch, before generating the report
     const evaluatedResponses = await Promise.all(
-      answeredQuestions.map(async (q: QuestionWithResponse) => {
+      answeredQuestions.map(async (q: QuestionWithDetails) => {
+        // If question is a Coding problem, preserve its code & test-based scores
+        if (q.questionType === "CODING" || q.codingProblem) {
+          return {
+            questionText: q.text,
+            answerText: q.response!.answerText,
+            correctnessScore: q.response!.correctnessScore ?? 5,
+            communicationScore: q.response!.communicationScore ?? 7,
+            structureScore: q.response!.structureScore ?? 7,
+          };
+        }
+
+        // For Text/Verbal questions, evaluate using AI response evaluator
         const aiResult = await evaluateResponse({
           questionText: q.text,
           answerText: q.response!.answerText,
@@ -313,6 +460,11 @@ export const getInterviewReport = async (req: AuthRequest, res: Response) => {
         questions: {
           include: {
             response: true,
+            codingProblem: true,
+            codeSubmissions: {
+              orderBy: { submittedAt: "desc" },
+              take: 1,
+            },
           },
           orderBy: {
             orderIndex: "asc",
@@ -395,10 +547,12 @@ export const deleteInterview = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: "Not authorized to delete this interview" });
     }
 
-    // Delete in FK order: responses → questions → report → interview
+    // Delete in FK order: codeSubmissions → codingProblems → responses → questions → report → interview
     const questionIds = interview.questions.map((q) => q.id);
 
     await prisma.$transaction([
+      prisma.codeSubmission.deleteMany({ where: { questionId: { in: questionIds } } }),
+      prisma.codingProblem.deleteMany({ where: { questionId: { in: questionIds } } }),
       prisma.response.deleteMany({ where: { questionId: { in: questionIds } } }),
       prisma.question.deleteMany({ where: { interviewId } }),
       prisma.report.deleteMany({ where: { interviewId } }),

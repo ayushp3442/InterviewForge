@@ -4,6 +4,7 @@ import helmet from "helmet";
 import authRoutes from "./routes/auth.routes.js";
 import interviewRoutes from "./routes/interview.routes.js";
 import resumeRoutes from "./routes/resume.routes.js";
+import codingRoutes from "./routes/coding.routes.js";
 import { generalLimiter } from "./middleware/rateLimiter.middleware.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 
@@ -52,6 +53,7 @@ app.get("/", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/resumes", resumeRoutes);
+app.use("/api/coding", codingRoutes);
 app.use(errorHandler);
 
 export default app;

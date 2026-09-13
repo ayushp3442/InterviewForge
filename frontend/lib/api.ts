@@ -216,3 +216,73 @@ export async function updateResumeSkills(resumeId: number, skills: string[]): Pr
   });
   return handleResponse<any>(res);
 }
+
+// ── Coding IDE API ──────────────────────────────────────────────────────
+
+export interface RunCodeResult {
+  status: string;
+  passed: boolean;
+  actualOutput: string;
+  expectedOutput: string;
+  stderr: string;
+  exitCode: number;
+  executionTimeMs: number;
+  memoryKb?: number;
+  errorDetails?: {
+    errorType: string;
+    rawMessage: string;
+    friendlyExplanation: string;
+    lineNumber?: number;
+    columnNumber?: number;
+    cleanMessage: string;
+  };
+}
+
+export interface SubmitCodeResult {
+  message: string;
+  submissionId: number;
+  passedVisible: number;
+  totalVisible: number;
+  passedHidden: number;
+  totalHidden: number;
+  passedAll: number;
+  totalAll: number;
+  executionTimeMs: number;
+  executionError: string | null;
+  codeQualityScore: number | null;
+  timeComplexity: string | null;
+  spaceComplexity: string | null;
+  feedback: string | null;
+}
+
+export async function getRuntimes(): Promise<{ runtimes: { name: string; displayName: string }[] }> {
+  const res = await fetch(`${API_URL}/coding/runtimes`);
+  return handleResponse<any>(res);
+}
+
+export async function runCode(
+  problemId: number,
+  language: string,
+  code: string,
+  testCaseIndex: number
+): Promise<RunCodeResult> {
+  const res = await authFetch(`${API_URL}/coding/${problemId}/run`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ language, code, testCaseIndex }),
+  });
+  return handleResponse<RunCodeResult>(res);
+}
+
+export async function submitCode(
+  problemId: number,
+  language: string,
+  code: string
+): Promise<SubmitCodeResult> {
+  const res = await authFetch(`${API_URL}/coding/${problemId}/submit`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ language, code }),
+  });
+  return handleResponse<SubmitCodeResult>(res);
+}
