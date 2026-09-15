@@ -18,15 +18,12 @@ const roles = [
   "Other / Custom role...",
 ];
 const difficulties = ["Beginner", "Intermediate", "Advanced"];
-const modes = ["Text"];
-const modesComingSoon = ["Voice"];
 
 function InterviewSetupContent() {
   const router = useRouter();
   const [category, setCategory] = useState("");
   const [role, setRole] = useState("");
   const [difficulty, setDifficulty] = useState("");
-  const [mode, setMode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resumeLinked, setResumeLinked] = useState(false);
@@ -35,7 +32,7 @@ function InterviewSetupContent() {
 
   const [customRole, setCustomRole] = useState("");
   const effectiveRole = role === "Other / Custom role..." ? customRole.trim() : role;
-  const canStart = category && effectiveRole.length >= 2 && difficulty && mode && !loading;
+  const canStart = category && effectiveRole.length >= 2 && difficulty && !loading;
 
   useEffect(() => {
     async function checkResume() {
@@ -54,7 +51,7 @@ function InterviewSetupContent() {
   async function handleStart() {
     setError(""); setLoading(true);
     try {
-      const createRes = await createInterview({ type: category, role: effectiveRole, domain: effectiveRole, difficulty, mode });
+      const createRes = await createInterview({ type: category, role: effectiveRole, domain: effectiveRole, difficulty, mode: "text" });
       const interviewId = createRes.interview.id;
       await addQuestionsToInterview(interviewId, questionCount);
       router.push(`/interview/${interviewId}`);
@@ -80,11 +77,10 @@ function InterviewSetupContent() {
           <button
             key={opt}
             onClick={() => onSelect(opt)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-              selected === opt
+            className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${selected === opt
                 ? "bg-charcoal text-cream shadow-md"
                 : "bg-cream-dark border border-stone-faint/30 text-charcoal-muted hover:text-charcoal hover:bg-cream-dark/80"
-            }`}
+              }`}
           >
             {opt}
           </button>
@@ -178,11 +174,10 @@ function InterviewSetupContent() {
                 <button
                   key={n}
                   onClick={() => setQuestionCount(n)}
-                  className={`flex-1 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                    questionCount === n
+                  className={`flex-1 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${questionCount === n
                       ? "bg-charcoal text-cream shadow-md"
                       : "bg-cream-dark border border-stone-faint/30 text-charcoal-muted hover:text-charcoal hover:bg-cream-dark/80"
-                  }`}
+                    }`}
                 >
                   {n}Q
                 </button>
@@ -194,12 +189,6 @@ function InterviewSetupContent() {
           <div>
             <label className="label-board">Difficulty</label>
             <PillGroup options={difficulties} selected={difficulty} onSelect={setDifficulty} />
-          </div>
-
-          {/* Mode */}
-          <div>
-            <label className="label-board">Mode</label>
-            <PillGroup options={modes} selected={mode} onSelect={setMode} disabledOptions={modesComingSoon} />
           </div>
 
           {error && <p className="text-xs text-warm-red text-center">{error}</p>}
