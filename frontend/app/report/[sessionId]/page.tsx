@@ -124,7 +124,15 @@ function ReportContent() {
   const { report, role, type, difficulty, questions } = data;
   const strengths = Array.isArray(report.strengths) ? report.strengths : [];
   const weaknesses = Array.isArray(report.weaknesses) ? report.weaknesses : [];
-  const overallPct = report.overallScore * 10;
+
+  // Safely normalize score to 0–100 percentage (whether stored as 0–10 or 0–100)
+  const toPercentage = (val: number | null | undefined) => {
+    if (val == null) return 0;
+    const num = val > 10 ? val : val * 10;
+    return Math.min(100, Math.max(0, Math.round(num)));
+  };
+
+  const overallPct = toPercentage(report.overallScore);
   const scoreColor = overallPct >= 70 ? "text-forest" : overallPct >= 50 ? "text-gold-muted" : "text-warm-red";
 
   function difficultyBadge(d: string) {
@@ -195,9 +203,9 @@ function ReportContent() {
         {/* Sub-score bars */}
         <div className="card-board p-5 mb-4 space-y-4">
           <h2 className="text-xs font-semibold text-stone uppercase tracking-wider">Score Breakdown</h2>
-          <ScoreBar label="Correctness" value={report.correctnessScore * 10} />
-          <ScoreBar label="Communication" value={report.communicationScore * 10} />
-          <ScoreBar label="Structure" value={report.structureScore * 10} />
+          <ScoreBar label="Correctness" value={toPercentage(report.correctnessScore)} />
+          <ScoreBar label="Communication" value={toPercentage(report.communicationScore)} />
+          <ScoreBar label="Structure" value={toPercentage(report.structureScore)} />
         </div>
 
         {/* Strengths & Weaknesses */}
@@ -254,18 +262,34 @@ function ReportContent() {
             {questions.map((item: any, i: number) => {
               const resp = item.response || {};
               const isOpen = expandedQ === i;
+              const isCoding = item.questionType === "CODING" || !!item.codingProblem || (item.codeSubmissions && item.codeSubmissions.length > 0);
+              const latestSub = item.codeSubmissions?.[0];
+              const rawAnswer = resp.answerText || "";
+              const hasCode = !!latestSub?.code || (rawAnswer.trim().length > 0 && rawAnswer !== "No answer submitted");
+              const displayCode = latestSub?.code || rawAnswer.replace(/^\/\/ \[[A-Z+]+ Solution\]\n?/, "");
+
+              // Compute question score
               const qScore = resp.correctnessScore != null
                 ? Math.round(((resp.correctnessScore + resp.communicationScore + resp.structureScore) / 3) * 10)
+                : latestSub
+                ? Math.round(((Math.round((latestSub.passedTestCases / (latestSub.totalTestCases || 1)) * 10) + (latestSub.codeQualityScore ?? 7) + (latestSub.codeQualityScore ?? 7)) / 3) * 10)
                 : null;
+
               return (
                 <div key={item.id}>
                   <button
                     onClick={() => setExpandedQ(isOpen ? null : i)}
                     className="w-full flex items-center justify-between px-5 py-4 hover:bg-cream-dark/30 transition-colors text-left"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <span className="text-[10px] font-bold text-stone-faint flex-shrink-0">Q{i + 1}</span>
-                      <p className="text-sm text-charcoal truncate">{item.text}</p>
+                      {isCoding && (
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#C9A45C]/15 text-[#9E7A2E] border border-[#C9A45C]/30 flex-shrink-0 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#C9A45C]" />
+                          Coding
+                        </span>
+                      )}
+                      <p className="text-sm text-charcoal truncate">{item.codingProblem?.title || item.text}</p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 ml-3">
                       {qScore !== null && (
@@ -281,22 +305,106 @@ function ReportContent() {
                       </svg>
                     </div>
                   </button>
+
                   {isOpen && (
                     <div className="px-5 pb-5 space-y-3">
-                      <div className="bg-cream-dark/40 rounded-xl p-3 border border-stone-faint/15">
-                        <p className="text-[10px] text-stone-light uppercase tracking-wider mb-1">Your Answer</p>
-                        <p className="text-xs text-charcoal-muted italic leading-relaxed">&ldquo;{resp.answerText || "No answer submitted"}&rdquo;</p>
-                      </div>
-                      <div className="flex gap-3 text-[11px]">
-                        <span className="text-stone">Correctness: <strong className="text-charcoal">{(resp.correctnessScore ?? 0) * 10}%</strong></span>
-                        <span className="text-stone">Communication: <strong className="text-charcoal">{(resp.communicationScore ?? 0) * 10}%</strong></span>
-                        <span className="text-stone">Structure: <strong className="text-charcoal">{(resp.structureScore ?? 0) * 10}%</strong></span>
-                      </div>
-                      {resp.feedback && (
-                        <div className="bg-gold/[0.04] border border-gold/15 rounded-xl p-3">
-                          <p className="text-[10px] text-gold-muted uppercase tracking-wider mb-1">AI Feedback</p>
-                          <p className="text-xs text-charcoal-muted leading-relaxed">{resp.feedback}</p>
-                        </div>
+                      {isCoding ? (
+                        /* ── Coding Challenge Result Display ── */
+                        <>
+                          {hasCode ? (
+                            <>
+                              {/* Metadata & Test pass chips */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {latestSub ? (
+                                  <span className={`text-xs px-2.5 py-1 rounded-lg border font-semibold flex items-center gap-1.5 ${
+                                    latestSub.passedTestCases === latestSub.totalTestCases
+                                      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                                      : "bg-amber-500/10 text-amber-700 border-amber-500/30"
+                                  }`}>
+                                    ✓ {latestSub.passedTestCases}/{latestSub.totalTestCases} Test Cases Passed
+                                  </span>
+                                ) : resp.correctnessScore != null ? (
+                                  <span className="text-xs px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 font-semibold">
+                                    {resp.correctnessScore * 10}% Score
+                                  </span>
+                                ) : null}
+
+                                <span className="text-xs px-2.5 py-1 rounded-lg border border-stone-faint/30 bg-cream-dark text-charcoal font-mono uppercase">
+                                  {latestSub?.language || "Code"}
+                                </span>
+
+                                {latestSub?.timeComplexity && (
+                                  <span className="text-xs px-2.5 py-1 rounded-lg border border-stone-faint/20 bg-cream text-stone font-mono">
+                                    Time: {latestSub.timeComplexity}
+                                  </span>
+                                )}
+
+                                {latestSub?.spaceComplexity && (
+                                  <span className="text-xs px-2.5 py-1 rounded-lg border border-stone-faint/20 bg-cream text-stone font-mono">
+                                    Space: {latestSub.spaceComplexity}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Submitted code block */}
+                              <div className="bg-[#141416] rounded-xl border border-[#2A2A2C] overflow-hidden p-3.5 font-mono text-xs shadow-inner">
+                                <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2A2A2C] text-[11px] text-[#8E8E93]">
+                                  <span>Submitted Solution</span>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(displayCode);
+                                      showSuccess("Code copied to clipboard!");
+                                    }}
+                                    className="hover:text-[#C9A45C] transition-colors cursor-pointer"
+                                  >
+                                    Copy Code
+                                  </button>
+                                </div>
+                                <pre className="text-[#E0D6C8] overflow-x-auto whitespace-pre leading-relaxed max-h-64">
+                                  {displayCode}
+                                </pre>
+                              </div>
+
+                              {/* Scores */}
+                              <div className="flex gap-3 text-[11px] flex-wrap">
+                                <span className="text-stone">Correctness: <strong className="text-charcoal">{(resp.correctnessScore ?? (latestSub ? Math.round((latestSub.passedTestCases / (latestSub.totalTestCases || 1)) * 10) : 0)) * 10}%</strong></span>
+                                <span className="text-stone">Code Quality: <strong className="text-charcoal">{(resp.communicationScore ?? latestSub?.codeQualityScore ?? 7) * 10}%</strong></span>
+                                <span className="text-stone">Architecture: <strong className="text-charcoal">{(resp.structureScore ?? latestSub?.codeQualityScore ?? 7) * 10}%</strong></span>
+                              </div>
+
+                              {/* AI Feedback */}
+                              {(latestSub?.feedback || resp.feedback) && (
+                                <div className="bg-gold/[0.05] border border-gold/20 rounded-xl p-3">
+                                  <p className="text-[10px] text-gold-muted uppercase tracking-wider font-semibold mb-1">Code Reviewer Feedback</p>
+                                  <p className="text-xs text-charcoal-muted leading-relaxed">{latestSub?.feedback || resp.feedback}</p>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="bg-warm-red/[0.05] border border-warm-red/20 rounded-xl p-3 text-xs text-warm-red">
+                              No code solution was submitted for this challenge during the interview.
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        /* ── Standard Text Question Result Display ── */
+                        <>
+                          <div className="bg-cream-dark/40 rounded-xl p-3 border border-stone-faint/15">
+                            <p className="text-[10px] text-stone-light uppercase tracking-wider mb-1">Your Answer</p>
+                            <p className="text-xs text-charcoal-muted italic leading-relaxed">&ldquo;{resp.answerText || "No answer submitted"}&rdquo;</p>
+                          </div>
+                          <div className="flex gap-3 text-[11px]">
+                            <span className="text-stone">Correctness: <strong className="text-charcoal">{(resp.correctnessScore ?? 0) * 10}%</strong></span>
+                            <span className="text-stone">Communication: <strong className="text-charcoal">{(resp.communicationScore ?? 0) * 10}%</strong></span>
+                            <span className="text-stone">Structure: <strong className="text-charcoal">{(resp.structureScore ?? 0) * 10}%</strong></span>
+                          </div>
+                          {resp.feedback && (
+                            <div className="bg-gold/[0.04] border border-gold/15 rounded-xl p-3">
+                              <p className="text-[10px] text-gold-muted uppercase tracking-wider mb-1">AI Feedback</p>
+                              <p className="text-xs text-charcoal-muted leading-relaxed">{resp.feedback}</p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

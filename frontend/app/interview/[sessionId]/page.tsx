@@ -1,9 +1,11 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getInterviewReport, submitResponse, completeInterview } from "@/lib/api";
 import AuthGuard from "@/components/AuthGuard";
 import AppLayout from "@/components/AppLayout";
+import CodingWorkspace from "@/components/coding/CodingWorkspace";
+import type { SubmitCodeResult } from "@/lib/api";
 
 function InterviewContent() {
   const router = useRouter();
@@ -17,6 +19,7 @@ function InterviewContent() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [codingSubmitted, setCodingSubmitted] = useState<Set<number>>(new Set());
 
   // ── Voice feature state ──────────────────────────────────────────
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -229,6 +232,41 @@ function InterviewContent() {
     }
   }
 
+  // ── Handle coding question submission ──
+  const handleCodingSubmitted = useCallback(
+    async (result: SubmitCodeResult) => {
+      const qId = questions[currentQ]?.id;
+      if (qId) {
+        setCodingSubmitted((prev) => new Set(prev).add(qId));
+      }
+    },
+    [questions, currentQ]
+  );
+
+  // ── Navigate to next question after coding submit ──
+  async function handleCodingNext() {
+    setSubmitting(true);
+    setError("");
+    try {
+      if (currentQ < questions.length - 1) {
+        setCurrentQ(currentQ + 1);
+        setAnswer("");
+        setSeconds(0);
+      } else {
+        await completeInterview(sessionId);
+        router.push(`/report/${sessionId}`);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to proceed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ── Check if current question is a coding question ──
+  const currentQuestion = questions[currentQ];
+  const isCodingQuestion = currentQuestion?.questionType === "CODING" && currentQuestion?.codingProblem;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
@@ -262,9 +300,10 @@ function InterviewContent() {
   }
 
   return (
-    <div className="min-h-screen bg-cream px-4 py-8 lg:py-12">
-      <div className="relative max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
+    <div className={`min-h-screen bg-cream transition-colors ${isCodingQuestion ? "px-2 sm:px-4 lg:px-6 py-2.5 sm:py-3" : "px-4 py-8 lg:py-12"}`}>
+      <div className={`relative mx-auto transition-all duration-300 ${isCodingQuestion ? "w-full max-w-[1780px]" : "max-w-2xl"}`}>
+        {/* Header — progress + timer */}
+        <div className={`flex items-center justify-between mb-3 ${isCodingQuestion ? "bg-white/80 backdrop-blur-md px-4 py-2 rounded-xl border border-stone-faint/30 shadow-xs" : "mb-4"}`}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -279,8 +318,14 @@ function InterviewContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <span className="text-xs font-semibold text-stone uppercase tracking-wider">
-              Question
+            <span className="text-xs font-semibold text-stone uppercase tracking-wider flex items-center gap-1.5">
+              <span>Question</span>
+              {isCodingQuestion && (
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#C9A45C]/15 text-[#9E7A2E] border border-[#C9A45C]/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#C9A45C] animate-pulse" />
+                  Live IDE
+                </span>
+              )}
             </span>
 
             <div className="flex gap-1.5">
@@ -300,171 +345,290 @@ function InterviewContent() {
               {currentQ + 1}/{questions.length}
             </span>
           </div>
-          <div className={`flex items-center gap-1.5 border rounded-full px-3 py-1 transition-colors duration-500 ${seconds >= 180
-            ? "bg-warm-red/[0.06] border-warm-red/30 animate-pulse"
-            : "bg-cream-dark border-stone-faint/30"
-            }`}>
-            <svg className={`w-3 h-3 transition-colors ${seconds >= 180 ? "text-warm-red" : "text-stone-light"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className={`text-xs font-mono tabular-nums transition-colors ${seconds >= 180 ? "text-warm-red" : "text-stone"}`}>{formatTime(seconds)}</span>
-          </div>
-        </div>
 
-        <div className="card-board mb-4 overflow-hidden">
-          <div className="h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
-
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="inline-flex items-center gap-1.5 bg-gold/10 border border-gold/20 text-gold-muted text-xs font-semibold px-2.5 py-1 rounded-full">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Q{currentQ + 1}
-              </div>
-
-              {speechSynthesisSupported && (
-                <button
-                  onClick={replayQuestion}
-                  disabled={isRecording}
-                  title="Replay question"
-                  className="p-1.5 rounded-full text-stone-light hover:text-gold-muted hover:bg-gold/10 transition-all disabled:opacity-30"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M6.343 6.343a9 9 0 000 12.728M9.172 9.172a5 5 0 000 7.072" />
-                  </svg>
-                </button>
-              )}
+          <div className="flex items-center gap-2.5">
+            {/* Timer */}
+            <div className={`flex items-center gap-1.5 border rounded-full px-3 py-1 transition-colors duration-500 ${seconds >= 180
+              ? "bg-warm-red/[0.06] border-warm-red/30 animate-pulse"
+              : "bg-cream-dark border-stone-faint/30"
+              }`}>
+              <svg className={`w-3 h-3 transition-colors ${seconds >= 180 ? "text-warm-red" : "text-stone-light"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className={`text-xs font-mono tabular-nums transition-colors ${seconds >= 180 ? "text-warm-red" : "text-stone"}`}>{formatTime(seconds)}</span>
             </div>
 
-            <p className="text-base font-medium text-charcoal leading-relaxed">
-              {questions[currentQ]?.text}
-            </p>
-
-            {isSpeaking && (
-              <p className="mt-3 text-xs text-gold-muted flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M6.343 6.343a9 9 0 000 12.728" />
-                </svg>
-                AI Interviewer is speaking...
-              </p>
-            )}
-
-            {questions[currentQ]?.sourceSkill && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="badge-keycap text-xs text-charcoal-muted">
-                  📌 From resume: {questions[currentQ].sourceSkill}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="card-board mb-4 overflow-hidden focus-within:border-gold/30 transition-colors">
-          <div className="relative">
-            <textarea
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={submitting}
-              placeholder="You can type or record your answer."
-              rows={7}
-              className="w-full bg-transparent px-5 py-4 pr-14 text-sm text-charcoal placeholder-stone-faint focus:outline-none resize-none disabled:opacity-40"
-            />
-
-            {speechRecognitionSupported && (
+            {/* Quick Next/Finish button in header for coding round when submitted */}
+            {isCodingQuestion && codingSubmitted.has(currentQuestion.id) && (
               <button
-                onClick={toggleRecording}
-                disabled={submitting || isSpeaking}
-                title={isRecording ? "Stop recording" : "Record your answer"}
-                className={`absolute bottom-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-30 ${isRecording
-                  ? "bg-warm-red text-cream animate-pulse"
-                  : "bg-gold/10 text-gold-muted hover:bg-gold/20"
-                  }`}
+                onClick={handleCodingNext}
+                disabled={submitting}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-forest hover:bg-forest/90 text-cream shadow-xs transition-all animate-fade-in"
               >
-                {isRecording ? (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
+                {submitting ? (
+                  <div className="w-3.5 h-3.5 border-2 border-cream/30 border-t-cream rounded-full animate-spin" />
+                ) : isLast ? (
+                  <>Finish & View Report →</>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                  </svg>
+                  <>Next Question →</>
                 )}
               </button>
             )}
           </div>
-
-          <div className="px-5 py-2 border-t border-stone-faint/15 flex justify-between items-center">
-            <span className="text-[11px] text-stone-light">
-              {isRecording ? (
-                <span className="text-warm-red font-medium">● Recording {formatTime(recordSeconds)}</span>
-              ) : !hasEnoughChars && charCount > 0
-                ? <span className="text-gold-muted">Min {minChars} chars needed ({minChars - charCount} more)</span>
-                : "Tip: Structure your answer with examples · Ctrl+Enter to submit"
-              }
-            </span>
-            <span className={`text-[11px] tabular-nums ${charCount >= minChars ? "text-forest" : charCount > 0 ? "text-stone" : "text-stone-faint"}`}>
-              {charCount}/{minChars < charCount ? charCount : minChars}
-            </span>
-          </div>
         </div>
 
-        {!speechRecognitionSupported && (
-          <p className="text-xs text-stone-light mb-3">
-            Voice input isn't supported in this browser. You can type your answer instead.
-          </p>
-        )}
+        {isCodingQuestion ? (
+          /* ── Coding Question: Full-width IDE Workspace ── */
+          <>
+            <div
+              className="bg-[#0E0E10] rounded-2xl overflow-hidden border border-[#2A2A2C] shadow-2xl mb-2.5 transition-all"
+              style={{ height: "calc(100vh - 110px)", minHeight: "650px" }}
+            >
+              <CodingWorkspace
+                problem={{
+                  id: currentQuestion.codingProblem.id,
+                  title: currentQuestion.codingProblem.title,
+                  difficulty: currentQuestion.codingProblem.difficulty,
+                  description: currentQuestion.codingProblem.description,
+                  constraints: currentQuestion.codingProblem.constraints,
+                  starterCode: currentQuestion.codingProblem.starterCode as Record<string, string>,
+                  visibleTestCases: (currentQuestion.codingProblem.testCases as any[]).filter((tc: any) => !tc.isHidden),
+                  supportedLanguages: Object.keys(currentQuestion.codingProblem.starterCode as Record<string, string>),
+                }}
+                sessionId={sessionId}
+                questionId={currentQuestion.id}
+                sourceSkill={currentQuestion.sourceSkill}
+                onSubmitted={handleCodingSubmitted}
+              />
+            </div>
 
-        {micError && (
-          <p className="text-xs text-warm-red mb-3 flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            {micError}
-          </p>
-        )}
+            {/* Error */}
+            {error && (
+              <p className="text-xs text-warm-red mb-2 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {error}
+              </p>
+            )}
 
-        {error && (
-          <p className="text-xs text-warm-red mb-3 flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            {error}
-          </p>
-        )}
+            {/* Status & Next step bar */}
+            <div className="flex items-center justify-between px-3 py-2 bg-white/70 backdrop-blur-xs rounded-xl border border-stone-faint/25">
+              <div className="flex items-center gap-2">
+                {codingSubmitted.has(currentQuestion.id) ? (
+                  <span className="text-xs text-forest font-medium flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-forest flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Solution evaluated and saved. You can re-submit code anytime or proceed to next question.
+                  </span>
+                ) : (
+                  <span className="text-xs text-stone-light flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                    Run your test cases in the IDE and click <strong>Submit Solution</strong> when ready.
+                  </span>
+                )}
+              </div>
 
-        <button
-          onClick={handleNext}
-          disabled={submitting || !answer.trim() || !hasEnoughChars}
-          className={`w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${submitting || !answer.trim()
-            ? "bg-cream-dark text-stone-faint cursor-not-allowed border border-stone-faint/20"
-            : isLast
-              ? "bg-forest hover:bg-forest/90 text-cream shadow-md hover:-translate-y-0.5"
-              : "btn-tactile"
-            }`}
-        >
-          {submitting ? (
-            <>
-              <div className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" />
-              {isLast ? "Compiling your report..." : "Evaluating answer..."}
-            </>
-          ) : isLast ? (
-            <>
-              Submit & Generate Report
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </>
-          ) : (
-            <>
-              Next question
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </>
-          )}
-        </button>
+              <button
+                onClick={handleCodingNext}
+                disabled={submitting || !codingSubmitted.has(currentQuestion.id)}
+                className={`px-5 py-2 rounded-lg text-xs font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${submitting || !codingSubmitted.has(currentQuestion.id)
+                  ? "bg-cream-dark text-stone-faint cursor-not-allowed border border-stone-faint/20"
+                  : isLast
+                    ? "bg-forest hover:bg-forest/90 text-cream shadow-md hover:-translate-y-0.5"
+                    : "btn-tactile"
+                  }`}
+              >
+                {submitting ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-cream/30 border-t-cream rounded-full animate-spin" />
+                    {isLast ? "Compiling report..." : "Next question..."}
+                  </>
+                ) : !codingSubmitted.has(currentQuestion.id) ? (
+                  "Submit Solution to continue"
+                ) : isLast ? (
+                  <>
+                    Submit & Generate Report
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </>
+                ) : (
+                  <>
+                    Next question
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        ) : (
+          /* ── Text Question: with Voice-Enabled Answer Input ── */
+          <>
+            {/* Question card */}
+            <div className="card-board mb-4 overflow-hidden">
+              {/* Gold top accent */}
+              <div className="h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
+
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="inline-flex items-center gap-1.5 bg-gold/10 border border-gold/20 text-gold-muted text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Q{currentQ + 1}
+                  </div>
+
+                  {speechSynthesisSupported && (
+                    <button
+                      onClick={replayQuestion}
+                      disabled={isRecording}
+                      title="Replay question"
+                      className="p-1.5 rounded-full text-stone-light hover:text-gold-muted hover:bg-gold/10 transition-all disabled:opacity-30"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M6.343 6.343a9 9 0 000 12.728M9.172 9.172a5 5 0 000 7.072" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-base font-medium text-charcoal leading-relaxed">
+                  {questions[currentQ]?.text}
+                </p>
+
+                {isSpeaking && (
+                  <p className="mt-3 text-xs text-gold-muted flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M6.343 6.343a9 9 0 000 12.728" />
+                    </svg>
+                    AI Interviewer is speaking...
+                  </p>
+                )}
+
+                {questions[currentQ]?.sourceSkill && (
+                  <div className="mt-4 flex items-center gap-2">
+                    <span className="badge-keycap text-xs text-charcoal-muted">
+                      📌 From resume: {questions[currentQ].sourceSkill}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Answer area */}
+            <div className="card-board mb-4 overflow-hidden focus-within:border-gold/30 transition-colors">
+              <div className="relative">
+                <textarea
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={submitting}
+                  placeholder="You can type or record your answer."
+                  rows={7}
+                  className="w-full bg-transparent px-5 py-4 pr-14 text-sm text-charcoal placeholder-stone-faint focus:outline-none resize-none disabled:opacity-40"
+                />
+
+                {speechRecognitionSupported && (
+                  <button
+                    onClick={toggleRecording}
+                    disabled={submitting || isSpeaking}
+                    title={isRecording ? "Stop recording" : "Record your answer"}
+                    className={`absolute bottom-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-30 ${isRecording
+                      ? "bg-warm-red text-cream animate-pulse"
+                      : "bg-gold/10 text-gold-muted hover:bg-gold/20"
+                      }`}
+                  >
+                    {isRecording ? (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <rect x="6" y="6" width="12" height="12" rx="2" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                      </svg>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              <div className="px-5 py-2 border-t border-stone-faint/15 flex justify-between items-center">
+                <span className="text-[11px] text-stone-light">
+                  {isRecording ? (
+                    <span className="text-warm-red font-medium">● Recording {formatTime(recordSeconds)}</span>
+                  ) : !hasEnoughChars && charCount > 0
+                    ? <span className="text-gold-muted">Min {minChars} chars needed ({minChars - charCount} more)</span>
+                    : "Tip: Structure your answer with examples · Ctrl+Enter to submit"
+                  }
+                </span>
+                <span className={`text-[11px] tabular-nums ${charCount >= minChars ? "text-forest" : charCount > 0 ? "text-stone" : "text-stone-faint"}`}>
+                  {charCount}/{minChars < charCount ? charCount : minChars}
+                </span>
+              </div>
+            </div>
+
+            {!speechRecognitionSupported && (
+              <p className="text-xs text-stone-light mb-3">
+                Voice input isn't supported in this browser. You can type your answer instead.
+              </p>
+            )}
+
+            {micError && (
+              <p className="text-xs text-warm-red mb-3 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {micError}
+              </p>
+            )}
+
+            {/* Error */}
+            {error && (
+              <p className="text-xs text-warm-red mb-3 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {error}
+              </p>
+            )}
+
+            {/* Submit button */}
+            <button
+              onClick={handleNext}
+              disabled={submitting || !answer.trim() || !hasEnoughChars}
+              className={`w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${submitting || !answer.trim()
+                ? "bg-cream-dark text-stone-faint cursor-not-allowed border border-stone-faint/20"
+                : isLast
+                  ? "bg-forest hover:bg-forest/90 text-cream shadow-md hover:-translate-y-0.5"
+                  : "btn-tactile"
+                }`}
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" />
+                  {isLast ? "Compiling your report..." : "Evaluating answer..."}
+                </>
+              ) : isLast ? (
+                <>
+                  Submit & Generate Report
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </>
+              ) : (
+                <>
+                  Next question
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              )}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

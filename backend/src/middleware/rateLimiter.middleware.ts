@@ -29,3 +29,19 @@ export const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * Strict rate limiter for code execution endpoints (run / submit).
+ * Prevents abuse of the Piston sandbox API.
+ * Limit: 20 requests per 1-minute window per IP.
+ */
+export const codeExecutionLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 20,
+  message: {
+    error: "Too many code execution requests. Please slow down.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+

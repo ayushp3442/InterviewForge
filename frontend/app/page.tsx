@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
 import Navbar from "@/components/landing/Navbar";
-import Hero from "@/components/landing/Hero";
+import VirtualBoardroomHero from "@/components/landing/VirtualBoardroomHero";
 
 const TrustedBy = dynamic(() => import("@/components/landing/TrustedBy"));
 const Features = dynamic(() => import("@/components/landing/Features"));
@@ -15,9 +15,9 @@ const Footer = dynamic(() => import("@/components/landing/Footer"));
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-cream">
+    <main className="min-h-screen bg-[#06070a] text-white selection:bg-amber-500/30 selection:text-amber-200">
       <Navbar />
-      <Hero />
+      <VirtualBoardroomHero />
       <TrustedBy />
       <Features />
       <HowItWorks />

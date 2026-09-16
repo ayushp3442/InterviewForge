@@ -7,15 +7,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ── Enums ────────────────────────────────────────────────────────────────
+
+enum QuestionType {
+  TEXT
+  CODING
+}
+
+// ── Models ───────────────────────────────────────────────────────────────
+
 model User {
-  id           Int         @id @default(autoincrement())
-  name         String
-  email        String      @unique
-  passwordHash String
-  role         String      @default("student")
-  createdAt    DateTime    @default(now())
-  resumes      Resume[]
-  interviews   Interview[]
+  id              Int              @id @default(autoincrement())
+  name            String
+  email           String           @unique
+  passwordHash    String
+  role            String           @default("student")
+  createdAt       DateTime         @default(now())
+  resumes         Resume[]
+  interviews      Interview[]
+  codeSubmissions CodeSubmission[]
 }
 
 model Resume {
@@ -44,13 +54,16 @@ model Interview {
 }
 
 model Question {
-  id          Int       @id @default(autoincrement())
-  interviewId Int
-  text        String
-  orderIndex  Int
-  sourceSkill String?        // NEW — traces question back to resume skill, e.g. "React"
-  interview   Interview @relation(fields: [interviewId], references: [id])
-  response    Response?
+  id              Int              @id @default(autoincrement())
+  interviewId     Int
+  text            String
+  orderIndex      Int
+  sourceSkill     String?          // traces question back to resume skill, e.g. "React"
+  questionType    QuestionType     @default(TEXT)
+  interview       Interview        @relation(fields: [interviewId], references: [id])
+  response        Response?
+  codingProblem   CodingProblem?
+  codeSubmissions CodeSubmission[]
 }
 
 model Response {
@@ -75,4 +88,39 @@ model Report {
   weaknesses         Json?          // was: String?
   roadmapText        String?        // kept as String — this one's prose, not a list
   interview          Interview @relation(fields: [interviewId], references: [id])
+}
+
+// ── Coding IDE Models ────────────────────────────────────────────────────
+
+model CodingProblem {
+  id          Int              @id @default(autoincrement())
+  questionId  Int              @unique
+  title       String                          // e.g. "Two Sum", "Reverse Linked List"
+  difficulty  String                          // "Easy" | "Medium" | "Hard"
+  description String           @db.Text       // full problem statement
+  constraints String?          @db.Text       // e.g. "1 <= nums.length <= 10^4"
+  starterCode Json                            // { python: "def ...", javascript: "function ...", java: "...", cpp: "..." }
+  testCases   Json                            // [{ input, expectedOutput, isHidden, explanation? }]
+  question    Question         @relation(fields: [questionId], references: [id])
+  submissions CodeSubmission[]
+}
+
+model CodeSubmission {
+  id               Int           @id @default(autoincrement())
+  codingProblemId  Int                         // NO @unique — multiple submissions allowed
+  questionId       Int                         // denormalized for fast query
+  userId           Int                         // from auth, never from frontend body
+  language         String                      // "python", "javascript", "java", "cpp"
+  code             String        @db.Text      // user's submitted code
+  passedTestCases  Int           @default(0)
+  totalTestCases   Int           @default(0)
+  executionTimeMs  Int?                        // average execution time across test cases
+  codeQualityScore Int?                        // 0-10, AI graded
+  timeComplexity   String?                     // e.g. "O(n)", "O(n log n)"
+  spaceComplexity  String?                     // e.g. "O(1)", "O(n)"
+  feedback         String?       @db.Text      // AI code review feedback
+  submittedAt      DateTime      @default(now())
+  codingProblem    CodingProblem @relation(fields: [codingProblemId], references: [id])
+  question         Question      @relation(fields: [questionId], references: [id])
+  user             User          @relation(fields: [userId], references: [id])
 }

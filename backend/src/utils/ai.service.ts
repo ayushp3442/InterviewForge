@@ -3,9 +3,12 @@
  * Owner: Ayush (AI Integration)
  *
  * Wraps Gemini 3.5 Flash for:
- *   1. generateQuestions  — tailored interview question generation
- *   2. evaluateResponse   — per-question scoring + feedback
- *   3. generateReport     — session-level report with roadmap
+ *   1. parseResume            — resume text → structured JSON
+ *   2. generateQuestions      — tailored interview question generation
+ *   3. evaluateResponse       — per-question scoring + feedback
+ *   4. generateReport         — session-level report with roadmap
+ *   5. generateCodingProblems — coding challenge generation with test cases
+ *   6. evaluateCodeSubmission — AI code review (quality, complexity, feedback)
  *
  * Implements:
  *   - JSON-schema validation for every AI response
@@ -555,4 +558,250 @@ Provide response in JSON matching the exact schema:
   });
 
   return callGeminiWithValidation(prompt, validateReport);
+};
+
+// ── 5. generateCodingProblems ───────────────────────────────────────────
+
+const VALID_CODING_DIFFICULTIES = ["Easy", "Medium", "Hard"];
+const VALID_LANGUAGES = ["python", "javascript", "java", "cpp"];
+
+export interface GenerateCodingProblemsInput {
+  role: string;
+  domain: string;
+  difficulty: string;
+  count: number;
+  resumeSkills?: string[];
+  resumeProjects?: Array<{ title: string; techStack?: string[]; description?: string }> | string[];
+}
+
+export interface GeneratedTestCase {
+  input: string;
+  expectedOutput: string;
+  isHidden: boolean;
+  explanation?: string;
+}
+
+export interface GeneratedCodingProblem {
+  title: string;
+  difficulty: string;
+  description: string;
+  constraints: string;
+  starterCode: Record<string, string>;
+  testCases: GeneratedTestCase[];
+}
+
+export const generateCodingProblems = async (
+  input: GenerateCodingProblemsInput
+): Promise<{ problems: GeneratedCodingProblem[] }> => {
+  const hasResume =
+    (input.resumeSkills && input.resumeSkills.length > 0) ||
+    (input.resumeProjects && Array.isArray(input.resumeProjects) && input.resumeProjects.length > 0);
+
+  const formattedProjects = Array.isArray(input.resumeProjects)
+    ? input.resumeProjects.map((p) => (typeof p === "string" ? p : `${p.title} (${p.techStack?.join(", ") || "General"})`)).join("; ")
+    : "";
+
+  const prompt = `You are an expert technical interviewer. Generate exactly ${input.count} coding challenge(s) for a mock interview.
+
+Interview Details:
+- Target Role: ${input.role}
+- Domain: ${input.domain}
+- Overall Difficulty: ${input.difficulty}
+${input.resumeSkills && input.resumeSkills.length > 0 ? `- Candidate Skills: ${input.resumeSkills.join(", ")}` : ""}
+${formattedProjects ? `- Candidate Projects: ${formattedProjects}` : ""}
+
+For EACH coding problem, provide:
+1. "title": Short problem title (e.g. "Two Sum", "Valid Parentheses")
+2. "difficulty": One of "Easy", "Medium", "Hard" — should roughly match the interview difficulty level
+3. "description": Full problem statement (clear, detailed, at least 2-3 sentences). Include what the function should do, input format, output format.
+4. "constraints": Input constraints (e.g. "1 <= nums.length <= 10^4", "0 <= nums[i] <= 10^9")
+5. "starterCode": Object with starter code templates for EACH of these languages: python, javascript, java, cpp. Each should have the function signature and basic structure.
+6. "testCases": Array of 4-6 test cases. IMPORTANT rules:
+   - At least 2 test cases with "isHidden": false (visible to the candidate, include "explanation")
+   - At least 2 test cases with "isHidden": true (hidden server-side evaluation, no explanation needed)
+   - Each test case must have "input" (string that will be passed as stdin) and "expectedOutput" (exact expected stdout)
+   - Test cases should cover: basic case, edge case, larger input
+
+${hasResume ? "Tailor problems to the candidate's skills and project experience where possible." : "Generate standard algorithmic/data-structure problems appropriate for the role."}
+
+Provide response in JSON matching the exact schema:
+{
+  "problems": [
+    {
+      "title": "string",
+      "difficulty": "Easy" | "Medium" | "Hard",
+      "description": "string (min 50 chars)",
+      "constraints": "string",
+      "starterCode": {
+        "python": "string",
+        "javascript": "string",
+        "java": "string",
+        "cpp": "string"
+      },
+      "testCases": [
+        {
+          "input": "string",
+          "expectedOutput": "string",
+          "isHidden": false,
+          "explanation": "string"
+        }
+      ]
+    }
+  ]
+}`;
+
+  const validateCodingProblems = (parsed: any): { problems: GeneratedCodingProblem[] } => {
+    if (!parsed || !Array.isArray(parsed.problems)) {
+      throw new Error("Response must contain a 'problems' array");
+    }
+
+    if (parsed.problems.length < 1) {
+      throw new Error("'problems' array must have at least 1 item");
+    }
+
+    const validatedProblems: GeneratedCodingProblem[] = parsed.problems.map(
+      (p: any, i: number) => {
+        // ── Required fields ──
+        const title = assertString(p.title, `problems[${i}].title`);
+
+        // ── Difficulty validation ──
+        const difficulty = assertString(p.difficulty, `problems[${i}].difficulty`);
+        if (!VALID_CODING_DIFFICULTIES.includes(difficulty)) {
+          throw new Error(
+            `problems[${i}].difficulty must be one of: ${VALID_CODING_DIFFICULTIES.join(", ")}. Got: "${difficulty}"`
+          );
+        }
+
+        // ── Description (min 50 chars for meaningful problem) ──
+        const description = assertString(p.description, `problems[${i}].description`);
+        if (description.length < 50) {
+          throw new Error(`problems[${i}].description must be at least 50 characters`);
+        }
+
+        const constraints = typeof p.constraints === "string" ? p.constraints.trim() : "";
+
+        // ── Starter code validation ──
+        if (!p.starterCode || typeof p.starterCode !== "object") {
+          throw new Error(`problems[${i}].starterCode must be an object`);
+        }
+
+        const starterCode: Record<string, string> = {};
+        for (const lang of VALID_LANGUAGES) {
+          if (typeof p.starterCode[lang] !== "string" || p.starterCode[lang].trim().length === 0) {
+            throw new Error(`problems[${i}].starterCode.${lang} must be a non-empty string`);
+          }
+          starterCode[lang] = p.starterCode[lang];
+        }
+
+        // ── Test cases validation ──
+        if (!Array.isArray(p.testCases) || p.testCases.length < 2) {
+          throw new Error(`problems[${i}].testCases must have at least 2 items`);
+        }
+
+        const testCases: GeneratedTestCase[] = p.testCases.map((tc: any, j: number) => {
+          if (typeof tc.input !== "string") {
+            throw new Error(`problems[${i}].testCases[${j}].input must be a string`);
+          }
+          if (typeof tc.expectedOutput !== "string") {
+            throw new Error(`problems[${i}].testCases[${j}].expectedOutput must be a string`);
+          }
+          if (typeof tc.isHidden !== "boolean") {
+            throw new Error(`problems[${i}].testCases[${j}].isHidden must be a boolean`);
+          }
+          return {
+            input: tc.input,
+            expectedOutput: tc.expectedOutput,
+            isHidden: tc.isHidden,
+            explanation: typeof tc.explanation === "string" ? tc.explanation : undefined,
+          };
+        });
+
+        // ── Consistency: at least 1 visible + 1 hidden test ──
+        const visibleCount = testCases.filter((tc) => !tc.isHidden).length;
+        const hiddenCount = testCases.filter((tc) => tc.isHidden).length;
+
+        if (visibleCount < 1) {
+          throw new Error(`problems[${i}] must have at least 1 visible test case`);
+        }
+        if (hiddenCount < 1) {
+          throw new Error(`problems[${i}] must have at least 1 hidden test case`);
+        }
+
+        return { title, difficulty, description, constraints, starterCode, testCases };
+      }
+    );
+
+    return { problems: validatedProblems };
+  };
+
+  return callGeminiWithValidation(prompt, validateCodingProblems);
+};
+
+// ── 6. evaluateCodeSubmission ───────────────────────────────────────────
+
+export interface EvaluateCodeInput {
+  problemDescription: string;
+  constraints: string;
+  language: string;
+  code: string;
+  passedTestCases: number;
+  totalTestCases: number;
+  executionError?: string;
+}
+
+export interface EvaluatedCode {
+  codeQualityScore: number;   // 0-10
+  timeComplexity: string;     // e.g. "O(n)", "O(n^2)"
+  spaceComplexity: string;    // e.g. "O(1)", "O(n)"
+  feedback: string;           // detailed code review
+}
+
+export const evaluateCodeSubmission = async (
+  input: EvaluateCodeInput
+): Promise<EvaluatedCode> => {
+  const prompt = `You are an expert code reviewer evaluating a candidate's solution during a technical interview.
+
+Problem Description:
+${input.problemDescription}
+
+Constraints:
+${input.constraints || "None specified"}
+
+Candidate's Solution (${input.language}):
+\`\`\`${input.language}
+${input.code}
+\`\`\`
+
+Test Results: ${input.passedTestCases}/${input.totalTestCases} test cases passed.${input.executionError ? `\nExecution Error/Warning: ${input.executionError}` : ""}
+
+CRITICAL INSTRUCTIONS:
+1. You are evaluating code quality, efficiency, and edge cases. The test pass/fail results (${input.passedTestCases}/${input.totalTestCases}) are ground truth from the test runner.
+2. If ${input.passedTestCases} < ${input.totalTestCases}:
+   - Do NOT say the solution is correct or complete.
+   - Explicitly point out potential failing edge cases (e.g., negative numbers, empty input, single element, duplicates, boundary limits, or algorithmic pitfalls).
+3. If all tests passed (${input.passedTestCases}/${input.totalTestCases}):
+   - Confirm correctness and analyze if further time/space optimizations are possible.
+
+Evaluate and provide:
+1. "codeQualityScore": Integer from 0 to 10 evaluating code readability, maintainability, naming conventions, DRY principle, modularity, and idiomatic usage of the language.
+2. "timeComplexity": The time complexity of the solution as a Big-O string (e.g. "O(n)", "O(n log n)", "O(n^2)").
+3. "spaceComplexity": The space complexity as a Big-O string (e.g. "O(1)", "O(n)").
+4. "feedback": Constructive, detailed code review. Include: what was done well, what failed or could be improved, alternative approaches, and missed edge cases.
+
+Provide response in JSON matching the exact schema:
+{
+  "codeQualityScore": number,
+  "timeComplexity": "string",
+  "spaceComplexity": "string",
+  "feedback": "string"
+}`;
+
+  const validateCodeEvaluation = (parsed: any): EvaluatedCode => ({
+    codeQualityScore: clampScore(parsed.codeQualityScore),
+    timeComplexity: assertString(parsed.timeComplexity, "timeComplexity"),
+    spaceComplexity: assertString(parsed.spaceComplexity, "spaceComplexity"),
+    feedback: assertString(parsed.feedback, "feedback"),
+  });
+
+  return callGeminiWithValidation(prompt, validateCodeEvaluation);
 };

@@ -31,4 +31,10 @@ Thumbs.db
 *.tsbuildinfo
 
 # Uploaded resume files (user data — never commit)
-backend/uploads/
+backend/uploads/
+
+# Python cache
+__pycache__/
+*/__pycache__/
+*.py[cod]
+

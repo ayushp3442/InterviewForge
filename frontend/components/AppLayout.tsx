@@ -85,6 +85,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }
 
+  // In live interview room, give 100% full screen width (no sidebar distraction)
+  const isLiveInterview = pathname?.startsWith("/interview/") && !pathname?.includes("/report");
+  if (isLiveInterview) {
+    return <div className="min-h-screen bg-cream">{children}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-cream flex">
       {/* ── Sidebar ── */}
