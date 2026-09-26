@@ -579,6 +579,10 @@ export interface GeneratedTestCase {
   expectedOutput: string;
   isHidden: boolean;
   explanation?: string;
+  /** "stdout" (default) or "function_behavior" — controls how the judge evaluates */
+  evaluationType?: "stdout" | "function_behavior";
+  /** Required for function_behavior: the function name the user must define */
+  functionName?: string;
 }
 
 export interface GeneratedCodingProblem {

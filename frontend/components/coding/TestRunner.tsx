@@ -220,6 +220,7 @@ function OutputPanel({
     success: testResult.passed
       ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
       : "bg-red-500/10 text-red-400 border-red-500/20",
+    assertion_failure: "bg-red-500/10 text-red-400 border-red-500/20",
     compilation_error: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     runtime_error: "bg-red-500/10 text-red-400 border-red-500/20",
     timeout: "bg-amber-500/10 text-amber-400 border-amber-500/20",
@@ -230,6 +231,7 @@ function OutputPanel({
 
   const statusLabels: Record<string, string> = {
     success: testResult.passed ? "Accepted" : "Wrong Answer",
+    assertion_failure: "Wrong Answer",
     compilation_error: "Compilation Error",
     runtime_error: "Runtime Error",
     timeout: "Time Limit Exceeded",
@@ -263,8 +265,8 @@ function OutputPanel({
         </div>
       </div>
 
-      {/* Output comparison for success */}
-      {testResult.status === "success" && (
+      {/* Output comparison for success or assertion failure */}
+      {(testResult.status === "success" || testResult.status === "assertion_failure") && (
         <div className="space-y-2">
           <div>
             <span className="text-[10px] text-[#6B6B6B] uppercase tracking-wider font-medium">
@@ -294,7 +296,7 @@ function OutputPanel({
       )}
 
       {/* Human-readable Error Diagnostics Card */}
-      {testResult.status !== "success" && (
+      {testResult.status !== "success" && testResult.status !== "assertion_failure" && (
         <div className="space-y-2.5">
           {errorDetails ? (
             <div className="bg-[#1C1C1E] rounded-lg border border-red-500/20 p-3 space-y-2.5">

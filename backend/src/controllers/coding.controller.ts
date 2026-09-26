@@ -25,6 +25,14 @@ import {
   EXECUTION_LIMITS,
 } from "../utils/code-execution.service.js";
 import { compareOutputs } from "../utils/code-runner/output-comparator.js";
+import {
+  runFunctionBehaviorTest,
+  getBuiltinBehaviorTests,
+  isBehaviorProblemTitle,
+  isFunctionBehaviorTestCase,
+  type FunctionBehaviorTestCase,
+  type FunctionBehaviorResult,
+} from "../utils/code-runner/function-behavior-runner.js";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -33,6 +41,13 @@ interface TestCase {
   expectedOutput: string;
   isHidden: boolean;
   explanation?: string;
+  /** "stdout" (default) or "function_behavior" */
+  evaluationType?: "stdout" | "function_behavior";
+  /** Required when evaluationType === "function_behavior" */
+  functionName?: string;
+  /** Required when evaluationType === "function_behavior" */
+  behaviorScript?: string;
+  description?: string;
 }
 
 // ── 1. Get Runtimes ─────────────────────────────────────────────────────
@@ -116,7 +131,67 @@ export const runCode = async (req: AuthRequest, res: Response) => {
 
     const testCase = visibleTestCases[testCaseIndex];
 
-    // ── Execute code via Sandboxed Runner ──
+    // ── Check if this problem uses function-behavior evaluation ──
+    // Priority: 1) built-in behavior registry by problem title, 2) testCase.evaluationType === "function_behavior"
+    const isBehaviorProblem =
+      isBehaviorProblemTitle(problem.title) ||
+      testCase.evaluationType === "function_behavior";
+
+    if (isBehaviorProblem) {
+      // ── Function-behavior evaluation path ──
+      const builtinBehaviorTests = getBuiltinBehaviorTests(problem.title, language);
+      let behaviorTC: FunctionBehaviorTestCase | null = null;
+
+      if (builtinBehaviorTests && builtinBehaviorTests.length > 0) {
+        // Use built-in behavior test for this index (only visible ones)
+        const visibleBehavior = builtinBehaviorTests.filter((bt) => !bt.isHidden);
+        behaviorTC = visibleBehavior[testCaseIndex] || builtinBehaviorTests[testCaseIndex];
+      } else if (isFunctionBehaviorTestCase(testCase)) {
+        behaviorTC = testCase as FunctionBehaviorTestCase;
+      }
+
+      if (!behaviorTC) {
+        // Language does not have a behavior runner for this problem (e.g. Java for JS-only problem)
+        return res.status(200).json({
+          status: "assertion_failure",
+          passed: false,
+          actualOutput: `Function-behavior evaluation: '${language}' is not supported for problem '${problem.title}', or code does not define function '${testCase.functionName || "debounce"}'`,
+          expectedOutput: `Defined callable function '${testCase.functionName || "debounce"}'`,
+          stderr: "",
+          exitCode: 1,
+          executionTimeMs: 0,
+          evaluationType: "function_behavior",
+          testStatus: "assertion_failure",
+        });
+      }
+
+      const behaviorResult = await runFunctionBehaviorTest(code, behaviorTC, language);
+
+      const statusMap: Record<string, string> = {
+        pass: "success",
+        fail: "assertion_failure",
+        compilation_error: "compilation_error",
+        runtime_error: "runtime_error",
+        timeout: "timeout",
+        execution_failed: "execution_failed",
+      };
+
+      return res.status(200).json({
+        status: statusMap[behaviorResult.status] || "assertion_failure",
+        passed: behaviorResult.passed,
+        actualOutput: behaviorResult.passed
+          ? `✓ ${behaviorResult.description}`
+          : behaviorResult.feedback || "Test assertion failed",
+        expectedOutput: behaviorResult.description,
+        stderr: "",
+        exitCode: behaviorResult.passed ? 0 : 1,
+        executionTimeMs: behaviorResult.executionTimeMs,
+        evaluationType: "function_behavior",
+        testStatus: behaviorResult.status,
+      });
+    }
+
+    // ── Standard stdout evaluation path (unchanged) ──
     const result = await executeCode({
        language,
        code,
@@ -143,6 +218,7 @@ export const runCode = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Something went wrong running your code" });
   }
 };
+
 
 // ── 3. Submit Code (all test cases + AI review) ─────────────────────────
 
@@ -195,13 +271,177 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
 
     // ── Execute code against ALL test cases (visible + hidden) ──
     const allTestCases = problem.testCases as unknown as TestCase[];
-    const visibleTests = allTestCases.filter((tc) => !tc.isHidden);
-    const hiddenTests = allTestCases.filter((tc) => tc.isHidden);
+
+    // Check if this problem has built-in behavior tests or custom function_behavior test cases
+    const isBehaviorProblem =
+      isBehaviorProblemTitle(problem.title) ||
+      allTestCases.some((tc) => tc.evaluationType === "function_behavior");
 
     let passedVisible = 0;
     let passedHidden = 0;
     let totalExecutionTime = 0;
     let executionError: string | null = null;
+
+    if (isBehaviorProblem) {
+      // ── Function-behavior evaluation path ──
+      const builtinBehaviorTests = getBuiltinBehaviorTests(problem.title, language);
+      const customBehaviorTests = allTestCases.filter((tc) =>
+        isFunctionBehaviorTestCase(tc)
+      ) as unknown as FunctionBehaviorTestCase[];
+
+      const behaviorTests =
+        builtinBehaviorTests && builtinBehaviorTests.length > 0
+          ? builtinBehaviorTests
+          : customBehaviorTests;
+
+      if (!behaviorTests || behaviorTests.length === 0) {
+        // Unsupported language for this function-behavior problem
+        return res.status(200).json({
+          message: "Code submission evaluated",
+          submissionId: 0,
+          passedVisible: 0,
+          totalVisible: 1,
+          passedHidden: 0,
+          totalHidden: 0,
+          passedAll: 0,
+          totalAll: 1,
+          executionTimeMs: 0,
+          executionError: `Function-behavior evaluation is not supported for language '${language}' on problem '${problem.title}'.`,
+          codeQualityScore: 1,
+          timeComplexity: "N/A",
+          spaceComplexity: "N/A",
+          feedback: `Language '${language}' is not supported for function-behavior problem '${problem.title}'. Please write your solution in JavaScript or Python.`,
+        });
+      }
+
+      const behaviorVisible = behaviorTests.filter((bt) => !bt.isHidden);
+      const behaviorHidden = behaviorTests.filter((bt) => bt.isHidden);
+
+      for (const bt of behaviorVisible) {
+        const result = await runFunctionBehaviorTest(code, bt, language);
+        totalExecutionTime += result.executionTimeMs;
+        if (result.passed) {
+          passedVisible++;
+        } else {
+          executionError = result.feedback || "Behavior test failed";
+        }
+      }
+
+      for (const bt of behaviorHidden) {
+        const result = await runFunctionBehaviorTest(code, bt, language);
+        totalExecutionTime += result.executionTimeMs;
+        if (result.passed) {
+          passedHidden++;
+        } else {
+          executionError = result.feedback || "Behavior test failed";
+        }
+      }
+
+      // Override counts for behavior tests
+      const visibleTests = behaviorVisible;
+      const hiddenTests = behaviorHidden;
+
+      const passedAll = passedVisible + passedHidden;
+      const totalAll = behaviorTests.length;
+      const avgExecutionTime = totalAll > 0 ? Math.round(totalExecutionTime / totalAll) : 0;
+
+      // ── Save CodeSubmission ──
+      const submission = await prisma.codeSubmission.create({
+        data: {
+          codingProblemId: problemId,
+          questionId: problem.questionId,
+          userId,
+          language,
+          code,
+          passedTestCases: passedAll,
+          totalTestCases: totalAll,
+          executionTimeMs: avgExecutionTime,
+        },
+      });
+
+      // ── AI Code Review (non-blocking) ──
+      let aiResult: {
+        codeQualityScore: number;
+        timeComplexity: string;
+        spaceComplexity: string;
+        feedback: string;
+      } | null = null;
+
+      try {
+        const { evaluateCodeSubmission } = await import("../utils/ai.service.js");
+        aiResult = await evaluateCodeSubmission({
+          problemDescription: problem.description,
+          constraints: problem.constraints || "",
+          language,
+          code,
+          passedTestCases: passedAll,
+          totalTestCases: totalAll,
+          executionError: executionError || undefined,
+        });
+
+        await prisma.codeSubmission.update({
+          where: { id: submission.id },
+          data: {
+            codeQualityScore: aiResult.codeQualityScore,
+            timeComplexity: aiResult.timeComplexity,
+            spaceComplexity: aiResult.spaceComplexity,
+            feedback: aiResult.feedback,
+          },
+        });
+      } catch (aiError) {
+        console.warn("[CodingController] AI code evaluation failed, continuing without:", aiError);
+      }
+
+      // ── Create/Update Response record ──
+      const correctnessScore = totalAll > 0 ? Math.round((passedAll / totalAll) * 10) : 0;
+      const communicationScore = aiResult?.codeQualityScore ?? (passedAll === totalAll ? 9 : 7);
+      const structureScore = aiResult?.codeQualityScore ?? (passedAll === totalAll ? 9 : 7);
+      const feedback = aiResult?.feedback || `Passed ${passedAll}/${totalAll} behavior tests.`;
+
+      try {
+        await prisma.response.upsert({
+          where: { questionId: problem.questionId },
+          create: {
+            questionId: problem.questionId,
+            answerText: `// [${language.toUpperCase()} Solution]\n${code}`,
+            correctnessScore,
+            communicationScore,
+            structureScore,
+            feedback,
+          },
+          update: {
+            answerText: `// [${language.toUpperCase()} Solution]\n${code}`,
+            correctnessScore,
+            communicationScore,
+            structureScore,
+            feedback,
+          },
+        });
+      } catch (respError) {
+        console.error("[CodingController] Failed to upsert question response:", respError);
+      }
+
+      return res.status(201).json({
+        message: "Code submitted successfully",
+        submissionId: submission.id,
+        passedVisible,
+        totalVisible: visibleTests.length,
+        passedHidden,
+        totalHidden: hiddenTests.length,
+        passedAll,
+        totalAll,
+        executionTimeMs: avgExecutionTime,
+        executionError,
+        codeQualityScore: aiResult?.codeQualityScore ?? null,
+        timeComplexity: aiResult?.timeComplexity ?? null,
+        spaceComplexity: aiResult?.spaceComplexity ?? null,
+        feedback: aiResult?.feedback ?? null,
+      });
+    }
+
+    // ── Standard stdout evaluation path (unchanged) ──
+    const visibleTests = allTestCases.filter((tc) => !tc.isHidden);
+    const hiddenTests = allTestCases.filter((tc) => tc.isHidden);
 
     // Run visible tests
     for (const tc of visibleTests) {
